@@ -1,5 +1,7 @@
 # サービスごと DB 分離リファクタ設計案
 
+> **ステータス: 実装完了**。`openshift/fx-trading-db-separated.yaml` として適用済み。各サービスは個別 DB に接続し、`trade_activity` は `fx-trade-saga-db` に集約している。
+
 ## 目的
 
 現在の PoC は、複数サービスが実質 1 つの PostgreSQL に集約しており、

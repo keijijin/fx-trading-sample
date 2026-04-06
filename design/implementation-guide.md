@@ -86,12 +86,10 @@ sequenceDiagram
 
     Client->>Core: POST /api/trades
     Core->>DB: trade_order 登録
-    Core->>DB: order を SELECT ... FOR UPDATE
+    Core->>DB: pg_advisory_xact_lock (口座排他)
+    Core->>DB: account_balance_bucket からバケット単位で残高拘束
     Core->>DB: trade_execution 登録
-    Core->>DB: account_balance 更新
-    Core->>DB: balance_hold 登録
-    Core->>DB: fx_position 更新
-    Core->>DB: trade_saga 初期登録
+    Core->>DB: balance_hold batchUpdate
     Core->>DB: outbox_event に TradeExecuted 登録
     Core-->>Client: 201 Created
 ```
@@ -99,9 +97,11 @@ sequenceDiagram
 ### ACID 領域で守っていること
 
 - `trade_execution` と残高拘束が分離しない
-- `trade_saga` が未作成のまま後続イベントが飛ばない
 - `TradeExecuted` の送信漏れを Outbox で防ぐ
 - 顧客への応答は後続 Saga 完了を待たずに返せる
+- ACID TX を極小化し、ロック保持時間を短くする
+
+**注意**: `fx_position`（建玉）の更新は `PositionProjectionConsumerRoute` が Kafka 経由で非同期実行する。`trade_saga` の初期登録は `trade-saga-service` が `TradeExecuted` を消費して `seed()` で行う。いずれも ACID TX には含まない。
 
 ## 3.2 Outbox
 
@@ -110,26 +110,31 @@ Outbox は、`outbox_event` テーブルをポーリングして Kafka に送信
 ```mermaid
 flowchart LR
     DB[(outbox_event)]
-    T[timer]
-    SQL[sql select]
-    CL[claim]
-    K[Kafka publish]
-    MS[markSent]
+    T[timer 50ms]
+    SQL[sql select + index]
+    CL[claimAndLoad\nUPDATE RETURNING]
+    K[Kafka publish\nlingerMs=5]
+    MS[markSent\nUPDATE only]
     MF[markFailed]
+    CLEAN[cleanup timer\n60s / SENT削除]
 
-    T --> SQL --> CL
+    T --> SQL -->|parallelProcessing\n4 threads| CL
     CL -->|claimed| K
     K -->|success| MS
     K -->|failure| MF
+    CLEAN --> DB
 ```
 
 ### Outbox 実装ポイント
 
-- `status in ('NEW','RETRY')` のみ対象
-- `claim` で二重送信を防止
-- 成功時は `SENT`
-- 失敗時は `RETRY` または `ERROR`
-- 送信履歴は `trade_activity` にも記録
+- `status in ('NEW','RETRY')` のみ対象（部分インデックス `idx_outbox_event_poll` で高速化）
+- `claimAndLoad` で claim と行取得を **1 DB 往復**（`UPDATE ... RETURNING *`）
+- `parallelProcessing()` + 固定プール（4 スレッド）で並列配信（Hikari 接続枯渇を防止）
+- `markSent` / `markFailed` はルートヘッダからコンテキスト受領、冗長な `findById` なし
+- 1 イベントの配信: **2 DB 往復**（旧: 4〜5 往復）
+- 成功時は `SENT`、失敗時は `RETRY` または `ERROR`
+- SENT 済みイベントは 60 秒ごとに 5 分経過分を最大 500 件クリーンアップ
+- 送信履歴は `trade_activity` にも記録（非同期キュー経由）
 
 ## 3.3 Saga 領域
 
@@ -245,31 +250,21 @@ flowchart TB
 
 ## 4.2 コンテナ構成
 
-ローカル実行は `podman compose` 前提です。
+ローカルは `podman compose`（単一 DB）、OpenShift は **サービス別 DB 分離構成**（8 DB）です。
 
 ```mermaid
 flowchart TB
-    subgraph Podman
-        PG[(PostgreSQL)]
-        K[Kafka]
-        F[fx-core-service]
-        SG[trade-saga-service]
-        CV[cover-service]
-        RK[risk-service]
-        AC[accounting-service]
-        ST[settlement-service]
-        NT[notification-service]
-        CM[compliance-service]
+    subgraph OpenShift
+        K[Kafka ×3 brokers]
+        F[fx-core-service] --> DB1[(fx-core-db)]
+        SG[trade-saga-service] --> DB2[(fx-trade-saga-db)]
+        CV[cover-service] --> DB3[(fx-cover-db)]
+        RK[risk-service] --> DB4[(fx-risk-db)]
+        AC[accounting-service] --> DB5[(fx-accounting-db)]
+        ST[settlement-service] --> DB6[(fx-settlement-db)]
+        NT[notification-service] --> DB7[(fx-notification-db)]
+        CM[compliance-service] --> DB8[(fx-compliance-db)]
     end
-
-    F --> PG
-    SG --> PG
-    CV --> PG
-    RK --> PG
-    AC --> PG
-    ST --> PG
-    NT --> PG
-    CM --> PG
 
     F --> K
     SG --> K
@@ -280,6 +275,8 @@ flowchart TB
     NT --> K
     CM --> K
 ```
+
+DB 分離の効果: ACID 領域の同期書き込みと後続サービスの更新が **異なる PostgreSQL インスタンス**に分散され、接続・ロック競合が緩和される。詳細は `design/db-separation-plan.md` を参照。
 
 ## 4.3 フロントエンド構成
 
@@ -364,11 +361,11 @@ Saga の進行を一元管理します。
 
 - `timer`
 - `sql`
-- `split`
+- `split` + `parallelProcessing` + `executorService`
 - `filter`
 - `choice`
 - `toD`
-- `kafka`
+- `kafka`（`consumersCount=2`, `CooperativeStickyAssignor`, `lingerMs=5`）
 - `direct`
 - `doTry / doCatch`
 
@@ -533,13 +530,20 @@ npm run dev
 - 部分約定は未対応
 - 実市場接続は未実装
 - 認証認可は簡略化
-- 監視・運用 Runbook は未整備
-- Outbox 発行は Timer ポーリング
+- Outbox 発行は Timer ポーリング（Debezium CDC は未導入）
+- シャーディング（約定コア分割）は設計文書のみ
 
 ただし、以下の本質的な設計要素は実装済みです。
 
 - ACID と Saga の境界
-- Outbox + Consumer 冪等
+- Outbox + Consumer 冪等（`claimAndLoad` による DB 往復最適化含む）
 - 補償の業務的打消し
 - 後続依存関係
 - ライブトレース UI
+- サービス別 DB 分離（OpenShift: 8 DB 構成）
+- 残高バケット化（16 分割で行ロック分散）
+- `trade_activity` 非同期バッチ化
+- Kafka 3 broker / 6 パーティション / `consumersCount=2`
+- Outbox 並列配信（4 スレッド制限）+ SENT クリーンアップ
+- Observability（Prometheus / Grafana / Loki / Tempo）
+- k6 負荷試験スイート（フルスイート / スパイク / レプリカ比較 / 接続バジェット検証）

@@ -125,7 +125,7 @@ PDF レポート（`loadtest/reports/The_Microservice_Scaling_Paradox.pdf`）お
 | 5 | ACID 短縮（batch hold / 直接 EXECUTED INSERT） | **実装済** | `batchUpdate` + `BALANCE_BUCKET_COUNT=16` |
 | 6 | 残高バケット化 | **実装済** | ハッシュ 16 バケットで行ロック分散 |
 | 7 | Outbox ポーリング間隔短縮 | **実装済** | `OUTBOX_POLL_PERIOD_MS=50` |
-| 8 | Outbox split 並列化 | **実装済** | `parallelProcessing()` |
+| 8 | Outbox split 並列化 + 接続プール制限 | **実装済** | `parallelProcessing()` + `executorService(Executors.newFixedThreadPool(4))`。無制限並列ではストレス時に Hikari pool を占有し API がタイムアウトするため、4 スレッドに制限 |
 | 9 | Kafka コンシューマ多重化 | **実装済** | `consumersCount=2` |
 | 10 | Kafka プロデューサ linger | **実装済** | `lingerMs=5` |
 | 11 | Outbox ポーリング用部分インデックス | **実装済** | `idx_outbox_event_poll (source_service, status, created_at) WHERE status IN ('NEW','RETRY')` |

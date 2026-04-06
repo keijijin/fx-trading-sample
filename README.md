@@ -12,20 +12,33 @@ FX トレーディングを題材に、`ACID + Saga` ハイブリッドアーキ
 
 ## 構成
 
-- `backend/`: Maven マルチモジュール構成のバックエンド
+- `backend/`: Maven マルチモジュール構成のバックエンド（8 サービス + common + integration-tests）
 - `frontend/`: Next.js ベースのライブトレース UI
-- `design/design.md`: 元の設計書
-- `design/coding-standards.md`: コーディング基準
-- `design/implementation-guide.md`: 実装概要、トランザクション詳細、実装アーキテクチャ、実装詳細
+- `openshift/`: OpenShift デプロイマニフェスト（DB 分離構成 / Observability スタック）
+- `loadtest/`: k6 負荷試験スイート + Python 実行スクリプト
+- `design/`: 設計ドキュメント群
+
+### 設計ドキュメント
+
+| ファイル | 内容 |
+|----------|------|
+| `design/design.md` | アーキテクチャ設計書（ACID/Saga 境界、データモデル、イベント経路、Java DSL サンプル） |
+| `design/implementation-guide.md` | 実装ガイド（トランザクション詳細、Outbox フロー、Camel の使い方） |
+| `design/coding-standards.md` | コーディング基準 |
+| `design/db-separation-plan.md` | サービス別 DB 分離設計（実装済み） |
+| `design/problems-and-mitigations.md` | 問題と対策の整理（補償順序、Outbox 最適化、スケーリング・パラドクス対処） |
+| `design/test-plan.md` | テスト計画（負荷モデル、シナリオ、閾値） |
+| `design/sharding-and-domain-split-roadmap.md` | シャーディング・ドメイン分割ロードマップ |
+| `design/discussion/` | 外部レビューのディスカッション記録 |
 
 ## 全体像
 
 ```mermaid
 flowchart LR
     UI[Next.js Live Tracker] --> CORE[FX Core Service]
-    CORE --> DB[(PostgreSQL)]
+    CORE --> DB1[(fx-core-db)]
     CORE --> OB[(outbox_event)]
-    OB --> K[Kafka]
+    OB -->|parallelProcessing\nclaimAndLoad| K[Kafka ×3 brokers\n6 partitions]
 
     K --> CV[Cover Service]
     K --> NT[Notification Service]
@@ -42,7 +55,10 @@ flowchart LR
     K --> ST[Settlement Service]
     ST --> K
 
-    SG --> DB
+    SG --> DB2[(fx-trade-saga-db)]
+    CV --> DB3[(fx-cover-db)]
+    RK --> DB4[(fx-risk-db)]
+    AC --> DB5[(fx-accounting-db)]
 ```
 
 ## クイックスタート
@@ -221,15 +237,16 @@ OpenShift 向けに以下を実装しています。
 
 ## Load Test
 
-負荷試験用スクリプトは `loadtest/` にあります。
+負荷試験用スクリプトは `loadtest/` にあります。詳細は `loadtest/README.md` を参照。
 
-- `loadtest/k6-trade-stress.js`
-- `loadtest/k6-1000-accounts-stress.js`
-- `loadtest/run_replica_comparison.py`
-- `loadtest/trade-request.json`
-- `loadtest/README.md`
-
-`run_replica_comparison.py` は、`fx-trading-sample` namespace を対象にレプリカ数を切り替えながら `hey` と Prometheus 指標をまとめて採取します。
+| スクリプト | 内容 |
+|------------|------|
+| `k6-test-plan-suite.js` / `run_test_plan_suite.py` | フルスイート（smoke / baseline / 各種 fail / stress / soak）を順次実行 |
+| `k6-spike-scale-test.js` / `run_spike_scale_test.py` | warm→spike→cool の 3 相スパイク試験 × レプリカ比較。相別 Prometheus `query_range` 付き |
+| `k6-trade-stress.js` | 単純な連続 POST 負荷 |
+| `k6-1000-accounts-stress.js` | 1000 アカウント集中負荷（ホットスポット検証） |
+| `verify_db_connection_budget.py` | Hikari プール × レプリカ数の積み上げと `max_connections` の突き合わせ |
+| `run_replica_comparison.py` | `hey` + Prometheus でレプリカ数別比較 |
 
 ### Grafana ダッシュボードで見られるもの
 
@@ -274,6 +291,18 @@ oc apply -f openshift/fx-trading-stack.yaml
 oc apply -f openshift/observability-stack.yaml
 ```
 
+## パフォーマンス改善（構造的スケーリング）
+
+「Pod を増やしても速くならない」構造的ボトルネック（[The Microservice Scaling Paradox](loadtest/reports/The_Microservice_Scaling_Paradox.pdf)）に対し、以下を実装済みです。
+
+- **DB 分離**: サービス別 8 DB 構成で接続・ロック競合を分離
+- **残高バケット化**: 16 分割ハッシュで行ロック競合を分散
+- **Outbox 最適化**: `UPDATE RETURNING` で DB 往復を半減（4→2）、`parallelProcessing`（4 スレッド制限）、部分インデックス、SENT クリーンアップ
+- **Kafka チューニング**: 3 broker / 6 partitions / `consumersCount=2` / `CooperativeStickyAssignor` / `lingerMs=5`
+- **`trade_activity` 非同期化**: `ConcurrentLinkedQueue` + バッチフラッシュ
+
+詳細は `design/problems-and-mitigations.md` §8 を参照。
+
 ## 実装方針
 
 - 約定コアは同期・強整合
@@ -282,13 +311,4 @@ oc apply -f openshift/observability-stack.yaml
 - 重複耐性は Consumer 側冪等
 - Camel 4 の EIP / Component を優先利用
 - 業務判断・状態遷移・補償判定は Service 層で管理
-
-## ドキュメント
-
-詳細は `design/implementation-guide.md` を参照してください。
-
-- 処理概要
-- トランザクションの詳細
-- 実装アーキテクチャ
-- 実装の詳細
-- Mermaid 図
+- 「流量ではなく競合点を減らす」構造的スケーリング

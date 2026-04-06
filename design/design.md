@@ -473,7 +473,24 @@ CREATE TABLE account_balance (
 );
 ```
 
-## 12.4 `balance_hold`
+## 12.4 `account_balance_bucket`
+
+残高ホールドの行ロック競合を分散するため、口座×通貨をハッシュで 16 バケットに分割する。
+
+```sql
+CREATE TABLE account_balance_bucket (
+    account_id           VARCHAR(64) NOT NULL,
+    currency             VARCHAR(3)  NOT NULL,
+    bucket_index         INTEGER     NOT NULL,
+    available_balance    DECIMAL(18,2) NOT NULL,
+    held_balance         DECIMAL(18,2) NOT NULL,
+    updated_at           TIMESTAMP NOT NULL,
+    version_no           INTEGER NOT NULL DEFAULT 0,
+    PRIMARY KEY (account_id, currency, bucket_index)
+);
+```
+
+## 12.5 `balance_hold`
 
 ```sql
 CREATE TABLE balance_hold (
@@ -487,7 +504,7 @@ CREATE TABLE balance_hold (
 );
 ```
 
-## 12.5 `fx_position`
+## 12.6 `fx_position`
 
 ```sql
 CREATE TABLE fx_position (
@@ -501,7 +518,7 @@ CREATE TABLE fx_position (
 );
 ```
 
-## 12.6 `trade_saga`
+## 12.7 `trade_saga`
 
 ```sql
 CREATE TABLE trade_saga (
@@ -657,11 +674,12 @@ PoCでは Podman を用い、以下をコンテナで起動する。
 * Notification Service
 * Compliance Service
 
+ローカルは Podman compose（単一 DB）、OpenShift は **サービス別 DB 分離構成**を採用する。
+
 ```mermaid
 flowchart TB
-    subgraph Podman
-        DB[(PostgreSQL)]
-        K[Kafka]
+    subgraph OpenShift / Podman
+        K[Kafka Cluster ×3 brokers]
         C1[fx-core-service]
         C2[trade-saga-service]
         C3[cover-service]
@@ -672,14 +690,32 @@ flowchart TB
         C8[compliance-service]
     end
 
-    C1 --> DB
-    C2 --> DB
-    C3 --> DB
-    C4 --> DB
-    C5 --> DB
-    C6 --> DB
-    C7 --> DB
-    C8 --> DB
+    subgraph DB分離構成
+        DB1[(fx-core-db)]
+        DB2[(fx-trade-saga-db)]
+        DB3[(fx-cover-db)]
+        DB4[(fx-risk-db)]
+        DB5[(fx-accounting-db)]
+        DB6[(fx-settlement-db)]
+        DB7[(fx-notification-db)]
+        DB8[(fx-compliance-db)]
+    end
+
+    C1 --> DB1
+    C1 -.->|activity / saga query| DB2
+    C2 --> DB2
+    C3 --> DB3
+    C3 -.->|activity| DB2
+    C4 --> DB4
+    C4 -.->|activity| DB2
+    C5 --> DB5
+    C5 -.->|activity| DB2
+    C6 --> DB6
+    C6 -.->|activity| DB2
+    C7 --> DB7
+    C7 -.->|activity| DB2
+    C8 --> DB8
+    C8 -.->|activity| DB2
 
     C1 --> K
     C2 --> K
@@ -690,6 +726,8 @@ flowchart TB
     C7 --> K
     C8 --> K
 ```
+
+DB 分離の詳細は `design/db-separation-plan.md`（実装済み）を参照。
 
 ---
 
@@ -717,93 +755,99 @@ flowchart TB
 
 ## 18.1 Outbox Publisher
 
+構造的改善を経て、現在の実装は以下の特徴を持つ。
+
+- **`parallelProcessing()`** + **`executorService(4 スレッド固定)`** で並列排出しつつ、接続プール枯渇を防止
+- **`claimAndLoad`**（`UPDATE ... RETURNING *`）で claim + findById を **1 DB 往復**に統合
+- **`markSent` / `markFailed`** はルート側ヘッダからコンテキストを受け取り、**冗長な findById を排除**
+- **`lingerMs=5`** でプロデューサのバッチ送信を有効化
+- **SENT クリーンアップルート**でテーブル肥大化を防止
+
 ```java
-@Component
-public class OutboxPublisherRoute extends RouteBuilder {
+public abstract class AbstractOutboxPublisherRoute extends RouteBuilder {
+    // ... constructor 省略
 
     @Override
     public void configure() {
+        // SENT 済みイベントの定期クリーンアップ
+        from("timer:...Cleanup?fixedRate=true&period={{outbox.cleanup.period.ms:60000}}")
+            .bean(outboxSupport, "cleanupSent(300, 500)");
 
-        from("timer:coreOutboxPoller?fixedRate=true&period={{outbox.poll.period.ms:100}}")
-            .routeId("core-outbox-poller")
-            .to("sql:select event_id from outbox_event "
-                + "where status in ('NEW','RETRY') "
-                + "and (next_retry_at is null or next_retry_at <= current_timestamp) "
-                + "order by created_at "
-                + "fetch first {{outbox.max.rows:100}} rows only"
+        // ポーリング → 並列 split
+        from("timer:...?fixedRate=true&period={{outbox.poll.period.ms:100}}")
+            .to("sql:select event_id from outbox_event where status in ('NEW','RETRY') ..."
                 + "?dataSource=#dataSource&outputType=SelectList")
-            .split(body())
-                .to("direct:publishOutboxEvent")
+            .split(body()).parallelProcessing().executorService(outboxPool())
+                .to("direct:...-publishOutboxEvent")
             .end();
 
-        from("direct:publishOutboxEvent")
-            .routeId("publish-outbox-event")
+        // claim + 取得を 1 往復で実行し、ヘッダにコンテキストを退避
+        from("direct:...-publishOutboxEvent")
             .setHeader("eventId", simple("${body[event_id]}"))
-            .bean("outboxClaimService", "claim(${header.eventId})")
-            .choice()
-                .when(body().isEqualTo(true))
-                    .bean("outboxQueryService", "findById(${header.eventId})")
-                    .setHeader("kafka.KEY", simple("${body[message_key]}"))
-                    .setHeader("eventType", simple("${body[event_type]}"))
-                    .setHeader("topicName", simple("${body[topic_name]}"))
-                    .setBody(simple("${body[payload]}"))
-                    .doTry()
-                        .toD("kafka:${header.topicName}?brokers={{kafka.bootstrap.servers}}&requestRequiredAcks=all")
-                        .bean("outboxStatusService", "markSent(${header.eventId})")
-                    .doCatch(Exception.class)
-                        .bean("outboxStatusService", "markFailed(${header.eventId}, ${exception.message})")
-                    .end()
-                .otherwise()
-                    .log("Skip already claimed eventId=${header.eventId}")
+            .bean(outboxSupport, "claimAndLoad(${header.eventId})")
+            .filter(body().isNotNull())
+                .setHeader("kafka.KEY",      simple("${body[message_key]}"))
+                .setHeader("eventType",      simple("${body[event_type]}"))
+                .setHeader("topicName",      simple("${body[topic_name]}"))
+                .setHeader("aggregateId",    simple("${body[aggregate_id]}"))
+                .setHeader("sourceService",  simple("${body[source_service]}"))
+                .setBody(simple("${body[payload]}"))
+                .doTry()
+                    .toD("kafka:${header.topicName}?brokers={{kafka.bootstrap.servers}}"
+                        + "&requestRequiredAcks=all&lingerMs=5")
+                    .bean(outboxSupport, "markSent(${header.eventId}, ${header.aggregateId}, ...)")
+                .doCatch(Exception.class)
+                    .bean(outboxSupport, "markFailed(${header.eventId}, ${exception.message}, ...)")
+                .end()
             .end();
+    }
+
+    private ExecutorService outboxPool() {
+        return Executors.newFixedThreadPool(4);
     }
 }
 ```
 
-レビュー指摘の通り、`topic_name` は **payload 化する前にヘッダへ退避**して使う。
+**DB 往復の変化（1 イベントの配信）**: claim + findById + Kafka + markSent(findById + UPDATE) = **4〜5 往復** → claimAndLoad(UPDATE RETURNING) + Kafka + markSent(UPDATE) = **2 往復**。
+
+**ポーリング用インデックス**: `CREATE INDEX idx_outbox_event_poll ON outbox_event(source_service, status, created_at) WHERE status IN ('NEW','RETRY');`
 
 ---
 
 ## 18.2 Cover Service Consumer
 
+Kafka コンシューマ URI は共通ヘルパー `KafkaConsumerUris.consumer()` で統一する。`consumersCount=2` でルートあたり 2 スレッド消費、`CooperativeStickyAssignor` でリバランスを抑制する。
+
 ```java
-@Component
-public class CoverConsumerRoute extends RouteBuilder {
-
-    @Override
-    public void configure() {
-
-        from("kafka:fx-trade-events?brokers={{kafka.bootstrap.servers}}&groupId=cover-service")
-            .routeId("cover-consume-trade-events")
-            .choice()
-                .when(header("eventType").isEqualTo("TradeExecuted"))
-                    .to("direct:bookCoverTrade")
-            .end();
-
-        from("kafka:fx-compensation-events?brokers={{kafka.bootstrap.servers}}&groupId=cover-service-comp")
-            .routeId("cover-consume-compensation-events")
-            .choice()
-                .when(header("eventType").isEqualTo("ReverseCoverTradeRequested"))
-                    .to("direct:reverseCoverTrade")
-            .end();
-
-        from("direct:bookCoverTrade")
-            .routeId("book-cover-trade")
-            .unmarshal().json()
-            .bean("duplicateMessageService", "isDuplicate(${header.eventId}, 'cover-service')")
-            .choice()
-                .when(body().isEqualTo(true))
-                    .log("Duplicate event ignored eventId=${header.eventId}")
-                .otherwise()
-                    .bean("coverSagaService", "bookCoverTrade")
-            .end();
-
-        from("direct:reverseCoverTrade")
-            .routeId("reverse-cover-trade")
-            .unmarshal().json()
-            .bean("coverSagaService", "reverseCoverTrade");
-    }
+// KafkaConsumerUris（共通ヘルパー）
+public static String consumer(String topic, String groupId) {
+    return "kafka:" + topic
+        + "?brokers={{kafka.bootstrap.servers}}"
+        + "&groupId=" + groupId
+        + "&consumersCount=2"
+        + "&maxPollRecords=100"
+        + "&pollTimeoutMs=1000"
+        + "&sessionTimeoutMs=60000"
+        + "&heartbeatIntervalMs=20000"
+        + "&maxPollIntervalMs=600000";
 }
+
+// Cover Service Route
+from(KafkaConsumerUris.consumer("fx-trade-events", "cover-service"))
+    .routeId("cover-consume-trade-events")
+    .choice()
+        .when(header("eventType").isEqualTo(EventTypes.TRADE_EXECUTED))
+            .unmarshal().json(JsonLibrary.Jackson, TradePayload.class)
+            .bean(coverTradeService, "book(${body}, ${header.eventId})")
+    .end();
+
+from(KafkaConsumerUris.consumer("fx-compensation-events", "cover-service-comp"))
+    .routeId("cover-consume-compensation-events")
+    .choice()
+        .when(header("eventType").isEqualTo(EventTypes.REVERSE_COVER_TRADE_REQUESTED))
+            .unmarshal().json(JsonLibrary.Jackson, TradePayload.class)
+            .bean(coverTradeService, "reverse(${body}, ${header.eventId})")
+    .end();
 ```
 
 ---
@@ -890,44 +934,48 @@ public class TradeSagaRoute extends RouteBuilder {
 
 ## 19.1 1トランザクション内の処理順
 
-1. 約定前コンプライアンスチェック
-2. `trade_order` を排他取得
-3. 二重約定防止チェック
+1. `trade_order` 登録（ステータスは直接 `EXECUTED`）
+2. `pg_advisory_xact_lock` で口座×通貨ペアの排他取得
+3. `account_balance_bucket` からバケット単位で残高拘束（`holdFromBucket` ループ）
 4. `trade_execution` 登録
-5. `account_balance.available_balance` 減算
-6. `account_balance.held_balance` 加算
-7. `balance_hold` 登録
-8. `fx_position` 更新
-9. `trade_saga` 初期登録
-10. `outbox_event` に `TradeExecuted` 登録
-11. commit
+5. `balance_hold` の `batchUpdate`
+6. `outbox_event` に `TradeExecuted` 登録
+7. commit
+
+**注意**: `fx_position` の更新と `trade_saga` の初期登録は **ACID TX に含まない**。
+
+- **建玉（`fx_position`）**: `PositionProjectionConsumerRoute` が Kafka `fx-trade-events` を消費して非同期更新
+- **`trade_saga`**: `trade-saga-service` が `TradeExecuted` を消費して `seed()` で初期登録
 
 ## 19.2 理由
 
-* 約定と資産拘束の不整合を防ぐため
-* `trade_saga` 初期状態も同一Txで作成し、後続が追跡対象を失わないようにする
+* ACID 領域を極小化し、ロック保持時間を短くする
+* 建玉と Saga は約定結果のイベントから復元可能であり、同期的に作成する必要がない
+* 残高バケット化（16 分割）により行ロック競合を分散
 
 ---
 
 # 20. Outbox 発行方式の注記
 
-## 20.1 PoC採用方式
+## 20.1 PoC 採用方式
 
-* Timer ポーリング
-* 目標値: `100ms` 程度まで短縮可能
+* Timer ポーリング（**50ms** 間隔、最大 300 件/バッチ）
+* `parallelProcessing()` + 固定プール（4 スレッド）で並列配信
+* `UPDATE ... RETURNING *` による DB 往復最適化（1 イベント 2 往復）
+* SENT 済みイベントの定期クリーンアップ（60 秒ごと）
+* ポーリング用部分インデックス（`source_service, status, created_at WHERE status IN ('NEW','RETRY')`）
 
 ## 20.2 制約
 
-* ポーリングである以上、約定→後続開始に待ち時間が入る
-* FXの本番要件によっては遅い可能性がある
+* ポーリングである以上、約定→後続開始に 50ms 程度の待ちが入る
+* 並列スレッド数は Hikari プールとの接続予算で制限される
 
 ## 20.3 本番候補
 
-* Debezium CDC
+* Debezium CDC（最も低遅延だがインフラ要件あり）
 * PostgreSQL LISTEN/NOTIFY
-* DBイベント駆動
 
-PoCでは Timer ポーリングを採用しつつ、**本番ではPush型を推奨**と明記する。
+PoC では最適化済み Timer ポーリングを採用しつつ、**本番ではPush型を推奨**と明記する。
 
 ---
 
