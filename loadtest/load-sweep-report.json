@@ -1,0 +1,61 @@
+{
+  "namespace": "fx-trading-sample",
+  "replicas": 3,
+  "duration": "60s",
+  "rates": {
+    "15": {
+      "k6": {
+        "passed": false,
+        "exit_code": 99,
+        "avg_api_s": 0.20907476745283013,
+        "p95_api_s": 0.39228693,
+        "trade_accepted": 901,
+        "trace_timed_out": 3,
+        "saga_completed": 48,
+        "http_req_failed_rate": null
+      },
+      "prometheus_after_window": {
+        "fx_core_http_post_p95_s": 0.14204709434999996,
+        "fx_core_tx_p95_s": 0.12228726246666663,
+        "kafka_lag_max": 152.0,
+        "hikari_pending_max": 0.0
+      }
+    },
+    "30": {
+      "k6": {
+        "passed": false,
+        "exit_code": 99,
+        "avg_api_s": 0.28107194579508676,
+        "p95_api_s": 0.36209830149999983,
+        "trade_accepted": 1791,
+        "trace_timed_out": 7,
+        "saga_completed": 82,
+        "http_req_failed_rate": null
+      },
+      "prometheus_after_window": {
+        "fx_core_http_post_p95_s": 0.21938206980714273,
+        "fx_core_tx_p95_s": 0.19964886842500018,
+        "kafka_lag_max": 274.0,
+        "hikari_pending_max": 0.0
+      }
+    },
+    "50": {
+      "k6": {
+        "passed": false,
+        "exit_code": 99,
+        "avg_api_s": 0.1845189383032449,
+        "p95_api_s": 0.32279438,
+        "trade_accepted": 2681,
+        "trace_timed_out": 5,
+        "saga_completed": 122,
+        "http_req_failed_rate": null
+      },
+      "prometheus_after_window": {
+        "fx_core_http_post_p95_s": 0.13533620805000013,
+        "fx_core_tx_p95_s": 0.12129305708888884,
+        "kafka_lag_max": 218.0,
+        "hikari_pending_max": 0.0
+      }
+    }
+  }
+}

@@ -1,0 +1,762 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: fx-prometheus-config
+data:
+  prometheus.yml: |
+    global:
+      scrape_interval: 15s
+      evaluation_interval: 15s
+
+    scrape_configs:
+      - job_name: fx-services
+        metrics_path: /actuator/prometheus
+        static_configs:
+          - targets:
+              - fx-core-service:8080
+              - trade-saga-service:8081
+              - cover-service:8082
+              - risk-service:8083
+              - accounting-service:8084
+              - settlement-service:8085
+              - notification-service:8086
+              - compliance-service:8087
+      - job_name: observability
+        static_configs:
+          - targets:
+              - fx-prometheus:9090
+              - fx-loki:3100
+              - fx-tempo:3200
+      - job_name: kube-state-metrics
+        static_configs:
+          - targets:
+              - fx-kube-state-metrics:8080
+      - job_name: kubernetes-nodes-cadvisor
+        scheme: https
+        metrics_path: /metrics/cadvisor
+        tls_config:
+          ca_file: /var/run/secrets/kubernetes.io/serviceaccount/ca.crt
+          insecure_skip_verify: true
+        bearer_token_file: /var/run/secrets/kubernetes.io/serviceaccount/token
+        kubernetes_sd_configs:
+          - role: node
+        relabel_configs:
+          - action: labelmap
+            regex: __meta_kubernetes_node_label_(.+)
+          - target_label: __address__
+            replacement: kubernetes.default.svc:443
+          - source_labels: [__meta_kubernetes_node_name]
+            regex: (.+)
+            target_label: __metrics_path__
+            replacement: /api/v1/nodes/$1/proxy/metrics/cadvisor
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: fx-prometheus
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: fx-kube-state-metrics
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: fx-prometheus-k8s-scrape
+rules:
+  - apiGroups: [""]
+    resources: ["nodes", "nodes/proxy", "nodes/metrics", "services", "endpoints", "pods", "namespaces"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["discovery.k8s.io"]
+    resources: ["endpointslices"]
+    verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: fx-prometheus-k8s-scrape
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: fx-prometheus-k8s-scrape
+subjects:
+  - kind: ServiceAccount
+    name: fx-prometheus
+    namespace: fx-trading-sample
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: fx-kube-state-metrics
+rules:
+  - apiGroups: [""]
+    resources: ["pods", "nodes", "namespaces", "services", "persistentvolumeclaims", "resourcequotas", "replicationcontrollers", "limitranges"]
+    verbs: ["list", "watch"]
+  - apiGroups: ["apps"]
+    resources: ["deployments", "daemonsets", "replicasets", "statefulsets"]
+    verbs: ["list", "watch"]
+  - apiGroups: ["batch"]
+    resources: ["jobs", "cronjobs"]
+    verbs: ["list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: fx-kube-state-metrics
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: fx-kube-state-metrics
+subjects:
+  - kind: ServiceAccount
+    name: fx-kube-state-metrics
+    namespace: fx-trading-sample
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: fx-loki-config
+data:
+  loki.yaml: |
+    auth_enabled: false
+
+    server:
+      http_listen_port: 3100
+      grpc_listen_port: 9096
+
+    common:
+      instance_addr: 127.0.0.1
+      path_prefix: /tmp/loki
+      replication_factor: 1
+      ring:
+        kvstore:
+          store: inmemory
+      storage:
+        filesystem:
+          chunks_directory: /tmp/loki/chunks
+          rules_directory: /tmp/loki/rules
+
+    schema_config:
+      configs:
+        - from: 2024-01-01
+          store: tsdb
+          object_store: filesystem
+          schema: v13
+          index:
+            prefix: index_
+            period: 24h
+
+    storage_config:
+      filesystem:
+        directory: /tmp/loki/chunks
+
+    limits_config:
+      allow_structured_metadata: true
+      volume_enabled: true
+
+    compactor:
+      working_directory: /tmp/loki/compactor
+      compaction_interval: 5m
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: fx-tempo-config
+data:
+  tempo.yaml: |
+    server:
+      http_listen_port: 3200
+
+    distributor:
+      receivers:
+        otlp:
+          protocols:
+            grpc:
+              endpoint: 0.0.0.0:4317
+            http:
+              endpoint: 0.0.0.0:4318
+
+    ingester:
+      trace_idle_period: 10s
+      max_block_duration: 5m
+
+    compactor:
+      compaction:
+        block_retention: 24h
+
+    storage:
+      trace:
+        backend: local
+        local:
+          path: /tmp/tempo/blocks
+        wal:
+          path: /tmp/tempo/wal
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: fx-grafana-datasources
+data:
+  datasources.yaml: |
+    apiVersion: 1
+    datasources:
+      - name: Prometheus
+        uid: prometheus
+        type: prometheus
+        access: proxy
+        url: http://fx-prometheus:9090
+        isDefault: true
+        editable: true
+      - name: Loki
+        uid: loki
+        type: loki
+        access: proxy
+        url: http://fx-loki:3100
+        editable: true
+        jsonData:
+          maxLines: 1000
+          derivedFields:
+            - datasourceUid: tempo
+              matcherRegex: 'traceId=([a-f0-9]+)'
+              name: TraceID
+              url: '$${__value.raw}'
+      - name: Tempo
+        uid: tempo
+        type: tempo
+        access: proxy
+        url: http://fx-tempo:3200
+        editable: true
+        jsonData:
+          httpMethod: GET
+          tracesToLogsV2:
+            datasourceUid: loki
+            spanStartTimeShift: "-5m"
+            spanEndTimeShift: "5m"
+            tags:
+              - key: service.name
+                value: app
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: fx-grafana-dashboard-provider
+data:
+  dashboards.yaml: |
+    apiVersion: 1
+    providers:
+      - name: fx-trading
+        orgId: 1
+        folder: FX Trading
+        type: file
+        disableDeletion: false
+        editable: true
+        options:
+          path: /var/lib/grafana/dashboards
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: fx-grafana-dashboard
+data:
+  fx-trading-overview.json: |
+    {
+      "annotations": {
+        "list": [
+          {
+            "builtIn": 1,
+            "datasource": {
+              "type": "grafana",
+              "uid": "-- Grafana --"
+            },
+            "enable": true,
+            "hide": true,
+            "iconColor": "rgba(0, 211, 255, 1)",
+            "name": "Annotations & Alerts",
+            "type": "dashboard"
+          }
+        ]
+      },
+      "editable": true,
+      "fiscalYearStartMonth": 0,
+      "graphTooltip": 0,
+      "id": null,
+      "links": [],
+      "panels": [
+        {
+          "datasource": {"type": "prometheus","uid": "prometheus"},
+          "fieldConfig": {"defaults": {"color": {"mode": "palette-classic"},"unit": "ops"},"overrides": []},
+          "gridPos": {"h": 8,"w": 12,"x": 0,"y": 0},
+          "id": 1,
+          "options": {"legend": {"displayMode": "table","placement": "bottom"}},
+          "targets": [
+            {"expr": "sum(rate(fx_trade_submitted_total[5m]))","legendFormat": "Trade Submitted/s","refId": "A"},
+            {"expr": "sum(rate(fx_saga_completed_total[5m]))","legendFormat": "Saga Completed/s","refId": "B"},
+            {"expr": "sum(rate(fx_saga_cancelled_total[5m]))","legendFormat": "Saga Cancelled/s","refId": "C"},
+            {"expr": "sum(rate(fx_compensation_started_total[5m]))","legendFormat": "Compensation Started/s","refId": "D"},
+            {"expr": "sum(rate(fx_saga_deferred_reverse_risk_enqueued_total[5m]))","legendFormat": "Deferred Reverse Risk (ordering fix)/s","refId": "E"}
+          ],
+          "title": "Trade Throughput and Outcomes",
+          "type": "timeseries"
+        },
+        {
+          "datasource": {"type": "prometheus","uid": "prometheus"},
+          "fieldConfig": {"defaults": {"color": {"mode": "palette-classic"},"unit": "s"},"overrides": []},
+          "gridPos": {"h": 8,"w": 12,"x": 12,"y": 0},
+          "id": 2,
+          "options": {"legend": {"displayMode": "table","placement": "bottom"}},
+          "targets": [
+            {"expr": "histogram_quantile(0.95, sum by (le, application) (rate(http_server_requests_seconds_bucket{uri!~\"/actuator.*\"}[5m])))","legendFormat": "{{application}} p95","refId": "A"},
+            {"expr": "histogram_quantile(0.99, sum by (le, application) (rate(http_server_requests_seconds_bucket{uri!~\"/actuator.*\"}[5m])))","legendFormat": "{{application}} p99","refId": "B"}
+          ],
+          "title": "HTTP Latency p95 / p99",
+          "type": "timeseries"
+        },
+        {
+          "datasource": {"type": "prometheus","uid": "prometheus"},
+          "fieldConfig": {"defaults": {"color": {"mode": "palette-classic"},"unit": "ops"},"overrides": []},
+          "gridPos": {"h": 8,"w": 12,"x": 0,"y": 8},
+          "id": 3,
+          "options": {"legend": {"displayMode": "table","placement": "bottom"}},
+          "targets": [
+            {"expr": "sum by (status) (rate(http_server_requests_seconds_count{status=~\"4..|5..\"}[5m]))","legendFormat": "HTTP {{status}}","refId": "A"}
+          ],
+          "title": "HTTP Error Rate by Status",
+          "type": "timeseries"
+        },
+        {
+          "datasource": {"type": "prometheus","uid": "prometheus"},
+          "fieldConfig": {"defaults": {"color": {"mode": "palette-classic"},"unit": "s"},"overrides": []},
+          "gridPos": {"h": 8,"w": 12,"x": 12,"y": 8},
+          "id": 4,
+          "options": {"legend": {"displayMode": "table","placement": "bottom"}},
+          "targets": [
+            {"expr": "histogram_quantile(0.95, sum by (le, outcome) (rate(fx_trade_saga_duration_seconds_bucket[5m])))","legendFormat": "{{outcome}} p95","refId": "A"},
+            {"expr": "histogram_quantile(0.99, sum by (le, outcome) (rate(fx_trade_saga_duration_seconds_bucket[5m])))","legendFormat": "{{outcome}} p99","refId": "B"}
+          ],
+          "title": "trade_saga Completion Duration",
+          "type": "timeseries"
+        },
+        {
+          "datasource": {"type": "prometheus","uid": "prometheus"},
+          "fieldConfig": {"defaults": {"color": {"mode": "palette-classic"},"unit": "short"},"overrides": []},
+          "gridPos": {"h": 8,"w": 12,"x": 0,"y": 16},
+          "id": 5,
+          "options": {"legend": {"displayMode": "table","placement": "bottom"}},
+          "targets": [
+            {"expr": "sum by (source_service) (fx_outbox_backlog_total)","legendFormat": "{{source_service}} backlog","refId": "A"},
+            {"expr": "sum by (source_service) (fx_outbox_error_total)","legendFormat": "{{source_service}} error","refId": "B"}
+          ],
+          "title": "Outbox Backlog",
+          "type": "timeseries"
+        },
+        {
+          "datasource": {"type": "prometheus","uid": "prometheus"},
+          "fieldConfig": {"defaults": {"color": {"mode": "palette-classic"},"unit": "short"},"overrides": []},
+          "gridPos": {"h": 8,"w": 12,"x": 12,"y": 16},
+          "id": 6,
+          "options": {"legend": {"displayMode": "table","placement": "bottom"}},
+          "targets": [
+            {"expr": "sum by (source_service) (rate(fx_outbox_enqueued_total[5m]))","legendFormat": "{{source_service}} enqueue","refId": "A"},
+            {"expr": "sum by (source_service) (rate(fx_outbox_sent_total[5m]))","legendFormat": "{{source_service}} sent","refId": "B"},
+            {"expr": "sum by (source_service) (rate(fx_outbox_failed_total[5m]))","legendFormat": "{{source_service}} failed","refId": "C"}
+          ],
+          "title": "Outbox Delivery Rate",
+          "type": "timeseries"
+        },
+        {
+          "datasource": {"type": "prometheus","uid": "prometheus"},
+          "fieldConfig": {"defaults": {"color": {"mode": "palette-classic"},"unit": "short"},"overrides": []},
+          "gridPos": {"h": 8,"w": 12,"x": 0,"y": 24},
+          "id": 7,
+          "options": {"legend": {"displayMode": "table","placement": "bottom"}},
+          "targets": [
+            {"expr": "hikaricp_connections_active","legendFormat": "{{application}} active","refId": "A"},
+            {"expr": "hikaricp_connections_pending","legendFormat": "{{application}} pending","refId": "B"},
+            {"expr": "hikaricp_connections_max","legendFormat": "{{application}} max","refId": "C"}
+          ],
+          "title": "HikariCP Connections",
+          "type": "timeseries"
+        },
+        {
+          "datasource": {"type": "prometheus","uid": "prometheus"},
+          "fieldConfig": {"defaults": {"color": {"mode": "palette-classic"},"unit": "short"},"overrides": []},
+          "gridPos": {"h": 8,"w": 12,"x": 12,"y": 24},
+          "id": 8,
+          "options": {"legend": {"displayMode": "table","placement": "bottom"}},
+          "targets": [
+            {"expr": "fx_kafka_consumer_group_lag","legendFormat": "{{consumer_group}} {{topic}}","refId": "A"}
+          ],
+          "title": "Kafka Consumer Lag",
+          "type": "timeseries"
+        },
+        {
+          "datasource": {"type": "prometheus","uid": "prometheus"},
+          "fieldConfig": {"defaults": {"color": {"mode": "palette-classic"},"unit": "cores"},"overrides": []},
+          "gridPos": {"h": 8,"w": 12,"x": 0,"y": 32},
+          "id": 9,
+          "options": {"legend": {"displayMode": "table","placement": "bottom"}},
+          "targets": [
+            {"expr": "sum by (pod) (rate(container_cpu_usage_seconds_total{namespace=\"fx-trading-sample\",container!=\"\",pod=~\"(fx|trade|cover|risk|accounting|settlement|notification|compliance).*\"}[5m]))","legendFormat": "{{pod}}","refId": "A"}
+          ],
+          "title": "Pod CPU Usage",
+          "type": "timeseries"
+        },
+        {
+          "datasource": {"type": "prometheus","uid": "prometheus"},
+          "fieldConfig": {"defaults": {"color": {"mode": "palette-classic"},"unit": "bytes"},"overrides": []},
+          "gridPos": {"h": 8,"w": 12,"x": 12,"y": 32},
+          "id": 10,
+          "options": {"legend": {"displayMode": "table","placement": "bottom"}},
+          "targets": [
+            {"expr": "sum by (pod) (container_memory_working_set_bytes{namespace=\"fx-trading-sample\",container!=\"\",pod=~\"(fx|trade|cover|risk|accounting|settlement|notification|compliance).*\"})","legendFormat": "{{pod}}","refId": "A"}
+          ],
+          "title": "Pod Memory Usage",
+          "type": "timeseries"
+        },
+        {
+          "datasource": {"type": "prometheus","uid": "prometheus"},
+          "fieldConfig": {"defaults": {"color": {"mode": "palette-classic"},"unit": "short"},"overrides": []},
+          "gridPos": {"h": 8,"w": 12,"x": 0,"y": 40},
+          "id": 11,
+          "options": {"legend": {"displayMode": "table","placement": "bottom"}},
+          "targets": [
+            {"expr": "sum by (pod) (kube_pod_container_status_restarts_total{namespace=\"fx-trading-sample\",pod=~\"(fx|trade|cover|risk|accounting|settlement|notification|compliance).*\"})","legendFormat": "{{pod}}","refId": "A"}
+          ],
+          "title": "Pod Restarts",
+          "type": "timeseries"
+        },
+        {
+          "datasource": {"type": "prometheus","uid": "prometheus"},
+          "fieldConfig": {"defaults": {"color": {"mode": "palette-classic"},"unit": "bytes"},"overrides": []},
+          "gridPos": {"h": 8,"w": 12,"x": 12,"y": 40},
+          "id": 12,
+          "options": {"legend": {"displayMode": "table","placement": "bottom"}},
+          "targets": [
+            {"expr": "sum by (application) (jvm_memory_used_bytes{area=\"heap\"})","legendFormat": "{{application}} heap","refId": "A"},
+            {"expr": "process_cpu_usage","legendFormat": "{{application}} cpu","refId": "B"}
+          ],
+          "title": "JVM Heap / Process CPU",
+          "type": "timeseries"
+        },
+        {
+          "datasource": {"type": "tempo","uid": "tempo"},
+          "gridPos": {"h": 8,"w": 12,"x": 0,"y": 48},
+          "id": 13,
+          "targets": [
+            {
+              "queryType": "traceqlSearch",
+              "query": "{ resource.service.name =~ \"fx-core-service|cover-service|risk-service|accounting-service|settlement-service\" }",
+              "refId": "A"
+            }
+          ],
+          "title": "Tempo Traces for FX Flow",
+          "type": "traces"
+        },
+        {
+          "datasource": {"type": "loki","uid": "loki"},
+          "gridPos": {"h": 8,"w": 12,"x": 12,"y": 48},
+          "id": 14,
+          "options": {
+            "dedupStrategy": "none",
+            "enableLogDetails": true,
+            "prettifyLogMessage": false,
+            "showLabels": true,
+            "sortOrder": "Descending",
+            "wrapLogMessage": true
+          },
+          "targets": [
+            {"expr": "{app=~\"fx-core-service|trade-saga-service|cover-service|risk-service|accounting-service|settlement-service|notification-service|compliance-service\"}","refId": "A"}
+          ],
+          "title": "Application Logs",
+          "type": "logs"
+        }
+      ],
+      "refresh": "10s",
+      "schemaVersion": 39,
+      "style": "dark",
+      "tags": [
+        "fx",
+        "trading",
+        "observability"
+      ],
+      "templating": {
+        "list": []
+      },
+      "time": {
+        "from": "now-30m",
+        "to": "now"
+      },
+      "timezone": "",
+      "title": "FX Trading Overview",
+      "uid": "fx-trading-overview",
+      "version": 1,
+      "weekStart": ""
+    }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: fx-prometheus
+spec:
+  selector:
+    app: fx-prometheus
+  ports:
+    - name: http
+      port: 9090
+      targetPort: 9090
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: fx-kube-state-metrics
+spec:
+  selector:
+    app: fx-kube-state-metrics
+  ports:
+    - name: http
+      port: 8080
+      targetPort: 8080
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: fx-loki
+spec:
+  selector:
+    app: fx-loki
+  ports:
+    - name: http
+      port: 3100
+      targetPort: 3100
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: fx-tempo
+spec:
+  selector:
+    app: fx-tempo
+  ports:
+    - name: http
+      port: 3200
+      targetPort: 3200
+    - name: otlp-grpc
+      port: 4317
+      targetPort: 4317
+    - name: otlp-http
+      port: 4318
+      targetPort: 4318
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: fx-grafana
+spec:
+  selector:
+    app: fx-grafana
+  ports:
+    - name: http
+      port: 3000
+      targetPort: 3000
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: fx-prometheus
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: fx-prometheus
+  template:
+    metadata:
+      labels:
+        app: fx-prometheus
+    spec:
+      serviceAccountName: fx-prometheus
+      containers:
+        - name: prometheus
+          image: prom/prometheus:v2.54.1
+          imagePullPolicy: IfNotPresent
+          args:
+            - --config.file=/etc/prometheus/prometheus.yml
+            - --storage.tsdb.path=/tmp/prometheus
+            - --web.enable-lifecycle
+          ports:
+            - containerPort: 9090
+              name: http
+          volumeMounts:
+            - name: config
+              mountPath: /etc/prometheus
+      volumes:
+        - name: config
+          configMap:
+            name: fx-prometheus-config
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: fx-kube-state-metrics
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: fx-kube-state-metrics
+  template:
+    metadata:
+      labels:
+        app: fx-kube-state-metrics
+    spec:
+      serviceAccountName: fx-kube-state-metrics
+      containers:
+        - name: kube-state-metrics
+          image: registry.k8s.io/kube-state-metrics/kube-state-metrics:v2.15.0
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8080
+              name: http
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: fx-loki
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: fx-loki
+  template:
+    metadata:
+      labels:
+        app: fx-loki
+    spec:
+      containers:
+        - name: loki
+          image: grafana/loki:3.3.2
+          imagePullPolicy: IfNotPresent
+          args:
+            - -config.file=/etc/loki/loki.yaml
+          ports:
+            - containerPort: 3100
+              name: http
+          volumeMounts:
+            - name: config
+              mountPath: /etc/loki
+      volumes:
+        - name: config
+          configMap:
+            name: fx-loki-config
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: fx-tempo
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: fx-tempo
+  template:
+    metadata:
+      labels:
+        app: fx-tempo
+    spec:
+      containers:
+        - name: tempo
+          image: grafana/tempo:2.6.1
+          imagePullPolicy: IfNotPresent
+          args:
+            - -config.file=/etc/tempo/tempo.yaml
+          ports:
+            - containerPort: 3200
+              name: http
+            - containerPort: 4317
+              name: otlp-grpc
+            - containerPort: 4318
+              name: otlp-http
+          volumeMounts:
+            - name: config
+              mountPath: /etc/tempo
+      volumes:
+        - name: config
+          configMap:
+            name: fx-tempo-config
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: fx-grafana
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: fx-grafana
+  template:
+    metadata:
+      labels:
+        app: fx-grafana
+    spec:
+      containers:
+        - name: grafana
+          image: grafana/grafana:11.3.1
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: GF_SECURITY_ADMIN_USER
+              value: admin
+            - name: GF_SECURITY_ADMIN_PASSWORD
+              value: admin123
+            - name: GF_PATHS_DATA
+              value: /tmp/grafana
+            - name: GF_PATHS_LOGS
+              value: /tmp/grafana/logs
+            - name: GF_PATHS_PLUGINS
+              value: /tmp/grafana/plugins
+            - name: GF_PATHS_PROVISIONING
+              value: /etc/grafana/provisioning
+          ports:
+            - containerPort: 3000
+              name: http
+          volumeMounts:
+            - name: grafana-data
+              mountPath: /tmp/grafana
+            - name: datasources
+              mountPath: /etc/grafana/provisioning/datasources
+            - name: dashboard-provider
+              mountPath: /etc/grafana/provisioning/dashboards
+            - name: dashboards
+              mountPath: /var/lib/grafana/dashboards
+      volumes:
+        - name: grafana-data
+          emptyDir: {}
+        - name: datasources
+          configMap:
+            name: fx-grafana-datasources
+        - name: dashboard-provider
+          configMap:
+            name: fx-grafana-dashboard-provider
+        - name: dashboards
+          configMap:
+            name: fx-grafana-dashboard
+---
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: fx-grafana
+spec:
+  to:
+    kind: Service
+    name: fx-grafana
+  port:
+    targetPort: http
+---
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: fx-prometheus
+spec:
+  to:
+    kind: Service
+    name: fx-prometheus
+  port:
+    targetPort: http

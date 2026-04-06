@@ -1,0 +1,86 @@
+{
+  "replica_1": {
+    "replicas": 1,
+    "accountPoolSize": 1000,
+    "selectionMode": "round_robin",
+    "k6": {
+      "average_s": 0.17322006273175888,
+      "fastest_s": 0.13584064799999998,
+      "slowest_s": 0.26677723099999995,
+      "requests_per_sec": 375.74079925468806,
+      "http_req_failed_rate": null,
+      "checks_rate": null
+    },
+    "prometheus": {
+      "http_p95_s": null,
+      "http_p99_s": null,
+      "http_error_rate": 0.0,
+      "saga_p95_s": null,
+      "saga_p99_s": null,
+      "outbox_backlog_max": 3122.0,
+      "hikari_active_max": 2.0,
+      "hikari_pending_max": 0.0,
+      "hikari_max": 10.0,
+      "kafka_lag_max": 11354.0,
+      "pod_cpu_sum_cores": 0.9894380731482791,
+      "pod_memory_sum_bytes": 6802702336.0,
+      "pod_restarts": 0.0
+    }
+  },
+  "replica_3": {
+    "replicas": 3,
+    "accountPoolSize": 1000,
+    "selectionMode": "round_robin",
+    "k6": {
+      "average_s": 0.17417035538769518,
+      "fastest_s": 0.135505233,
+      "slowest_s": 0.450988362,
+      "requests_per_sec": 373.7318077138511,
+      "http_req_failed_rate": null,
+      "checks_rate": null
+    },
+    "prometheus": {
+      "http_p95_s": null,
+      "http_p99_s": null,
+      "http_error_rate": 0.0,
+      "saga_p95_s": null,
+      "saga_p99_s": null,
+      "outbox_backlog_max": 2038.0,
+      "hikari_active_max": 7.0,
+      "hikari_pending_max": 0.0,
+      "hikari_max": 10.0,
+      "kafka_lag_max": 19658.0,
+      "pod_cpu_sum_cores": 4.769228523444116,
+      "pod_memory_sum_bytes": 14584549376.0,
+      "pod_restarts": 0.0
+    }
+  },
+  "replica_5": {
+    "replicas": 5,
+    "accountPoolSize": 1000,
+    "selectionMode": "round_robin",
+    "k6": {
+      "average_s": 2.4419662523400145,
+      "fastest_s": 0.13862609599999998,
+      "slowest_s": 30.240475243000002,
+      "requests_per_sec": 25.735703368389032,
+      "http_req_failed_rate": null,
+      "checks_rate": null
+    },
+    "prometheus": {
+      "http_p95_s": null,
+      "http_p99_s": null,
+      "http_error_rate": 0.0,
+      "saga_p95_s": null,
+      "saga_p99_s": null,
+      "outbox_backlog_max": 1712.0,
+      "hikari_active_max": 1.0,
+      "hikari_pending_max": 0.0,
+      "hikari_max": 10.0,
+      "kafka_lag_max": 29601.0,
+      "pod_cpu_sum_cores": 1.3088073405707712,
+      "pod_memory_sum_bytes": 23261741056.0,
+      "pod_restarts": 0.0
+    }
+  }
+}

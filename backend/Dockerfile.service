@@ -1,0 +1,16 @@
+FROM maven:3.9.9-eclipse-temurin-21 AS build
+
+ARG MODULE
+WORKDIR /workspace
+
+COPY . .
+RUN mvn -q -DskipTests -pl ${MODULE} -am package
+
+FROM eclipse-temurin:21-jre
+
+ARG MODULE
+WORKDIR /app
+
+COPY --from=build /workspace/${MODULE}/target/${MODULE}-0.1.0-SNAPSHOT.jar app.jar
+
+ENTRYPOINT ["java", "-jar", "/app/app.jar"]

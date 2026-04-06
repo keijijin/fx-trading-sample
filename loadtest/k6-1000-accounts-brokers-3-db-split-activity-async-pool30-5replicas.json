@@ -1,0 +1,41 @@
+{
+  "replica_5": {
+    "replicas": 5,
+    "accountPoolSize": 1000,
+    "selectionMode": "round_robin",
+    "script": "k6-1000-accounts-stress.js",
+    "modeLabel": "1000-account-pool-brokers-3-db-split-activity-async-pool30",
+    "k6": {
+      "average_s": 0.3754838654307823,
+      "fastest_s": 0.139175579,
+      "slowest_s": 2.657440582,
+      "requests_per_sec": 169.97392522142576,
+      "http_req_failed_rate": null,
+      "checks_rate": null
+    },
+    "prometheus": {
+      "http_p95_s": 0.7281933949967133,
+      "http_p99_s": 1.2883066967597345,
+      "http_error_rate": null,
+      "saga_p95_s": null,
+      "saga_p99_s": null,
+      "outbox_backlog_max": 730.0,
+      "hikari_active_max": 6.0,
+      "hikari_pending_max": 0.0,
+      "hikari_max": 30.0,
+      "kafka_lag_max": 703.0,
+      "pod_cpu_sum_cores": 19.985617775860735,
+      "pod_memory_sum_bytes": 29266325504.0,
+      "pod_restarts": 0.0,
+      "fx_core_tx_p95_s": 0.13309924595,
+      "fx_core_tx_p99_s": 1.0459213698979053,
+      "fx_core_lock_wait_p95_s": 0.0359809311233064,
+      "fx_core_lock_wait_p99_s": 0.5065723390821221,
+      "fx_core_slow_operation_rate": 5.6494502698137525,
+      "trade_saga_stage_cover_p95_s": null,
+      "trade_saga_stage_risk_p95_s": null,
+      "trade_saga_stage_accounting_p95_s": null,
+      "trade_saga_stage_settlement_p95_s": null
+    }
+  }
+}

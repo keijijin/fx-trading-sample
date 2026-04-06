@@ -1,0 +1,60 @@
+spring:
+  application:
+    name: accounting-service
+  datasource:
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:fx_trading}
+    username: ${DB_USER:fx}
+    password: ${DB_PASSWORD:fx}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus
+  endpoint:
+    health:
+      probes:
+        enabled: true
+      show-details: always
+  metrics:
+    tags:
+      application: ${spring.application.name}
+  tracing:
+    sampling:
+      probability: 1.0
+  otlp:
+    tracing:
+      endpoint: ${OTEL_EXPORTER_OTLP_ENDPOINT:http://tempo:4318/v1/traces}
+
+observability:
+  loki:
+    url: ${LOKI_URL:}
+
+logging:
+  include-application-name: true
+  pattern:
+    level: "%5p traceId=%X{traceId:-} spanId=%X{spanId:-}"
+
+camel:
+  springboot:
+    main-run-controller: true
+  main:
+    run-controller: true
+  component:
+    kafka:
+      additional-properties:
+        partition.assignment.strategy: org.apache.kafka.clients.consumer.CooperativeStickyAssignor
+
+server:
+  port: ${SERVER_PORT:8084}
+
+kafka:
+  bootstrap:
+    servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+
+outbox:
+  poll:
+    period:
+      ms: ${OUTBOX_POLL_PERIOD_MS:100}
+  max:
+    rows: ${OUTBOX_MAX_ROWS:100}

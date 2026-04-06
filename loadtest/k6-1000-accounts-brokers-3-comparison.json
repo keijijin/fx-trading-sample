@@ -1,0 +1,92 @@
+{
+  "replica_1": {
+    "replicas": 1,
+    "accountPoolSize": 1000,
+    "selectionMode": "round_robin",
+    "script": "k6-1000-accounts-stress.js",
+    "modeLabel": "1000-account-pool-brokers-3",
+    "k6": {
+      "average_s": 0.17548615552084879,
+      "fastest_s": 0.133967529,
+      "slowest_s": 0.369650417,
+      "requests_per_sec": 370.54878688757236,
+      "http_req_failed_rate": null,
+      "checks_rate": null
+    },
+    "prometheus": {
+      "http_p95_s": null,
+      "http_p99_s": null,
+      "http_error_rate": null,
+      "saga_p95_s": null,
+      "saga_p99_s": null,
+      "outbox_backlog_max": 5680.0,
+      "hikari_active_max": 4.0,
+      "hikari_pending_max": 0.0,
+      "hikari_max": 10.0,
+      "kafka_lag_max": 588.0,
+      "pod_cpu_sum_cores": 4.209100951896538,
+      "pod_memory_sum_bytes": 5203349504.0,
+      "pod_restarts": 0.0
+    }
+  },
+  "replica_3": {
+    "replicas": 3,
+    "accountPoolSize": 1000,
+    "selectionMode": "round_robin",
+    "script": "k6-1000-accounts-stress.js",
+    "modeLabel": "1000-account-pool-brokers-3",
+    "k6": {
+      "average_s": 0.17529836071079974,
+      "fastest_s": 0.136655189,
+      "slowest_s": 0.47942915599999997,
+      "requests_per_sec": 372.02543857826856,
+      "http_req_failed_rate": null,
+      "checks_rate": null
+    },
+    "prometheus": {
+      "http_p95_s": null,
+      "http_p99_s": null,
+      "http_error_rate": null,
+      "saga_p95_s": null,
+      "saga_p99_s": null,
+      "outbox_backlog_max": 9943.0,
+      "hikari_active_max": 1.0,
+      "hikari_pending_max": 0.0,
+      "hikari_max": 10.0,
+      "kafka_lag_max": 1816.0,
+      "pod_cpu_sum_cores": 5.774861958543925,
+      "pod_memory_sum_bytes": 14238035968.0,
+      "pod_restarts": 0.0
+    }
+  },
+  "replica_5": {
+    "replicas": 5,
+    "accountPoolSize": 1000,
+    "selectionMode": "round_robin",
+    "script": "k6-1000-accounts-stress.js",
+    "modeLabel": "1000-account-pool-brokers-3",
+    "k6": {
+      "average_s": 3.5095317763584295,
+      "fastest_s": 0.139178506,
+      "slowest_s": 30.305449948,
+      "requests_per_sec": 16.348497724248073,
+      "http_req_failed_rate": null,
+      "checks_rate": null
+    },
+    "prometheus": {
+      "http_p95_s": null,
+      "http_p99_s": null,
+      "http_error_rate": null,
+      "saga_p95_s": null,
+      "saga_p99_s": null,
+      "outbox_backlog_max": 6563.0,
+      "hikari_active_max": 1.0,
+      "hikari_pending_max": 0.0,
+      "hikari_max": 10.0,
+      "kafka_lag_max": 10099.0,
+      "pod_cpu_sum_cores": 1.3407219879860295,
+      "pod_memory_sum_bytes": 23134584832.0,
+      "pod_restarts": 0.0
+    }
+  }
+}

@@ -1,0 +1,51 @@
+---
+description: Camel 4 で Outbox Publisher Route を実装する際の雛形
+globs: **/*.java
+alwaysApply: false
+---
+
+# Camel Outbox Publisher Template
+
+- Outbox Publisher は `timer` or `scheduler` で起動し、`sql` で対象取得し、`split` で 1 件ずつ publish する。
+- 対象行の取得後は claim を先に行い、二重送信防止を Route 入口で担保する。
+- `topic_name`、`message_key`、`event_type`、`event_id` は body を payload に置き換える前にヘッダへ退避する。
+- Kafka 送信成功時は `markSent`、失敗時は `markFailed` とし、再送判定は `retry_count` と `next_retry_at` で管理する。
+- 送信可否、失敗理由整形、状態更新は Service / DAO に任せ、Route は `sql`、`choice`、`toD`、`doTry` / `onException` で組む。
+
+## Good Example
+
+```java
+from("timer:coreOutboxPoller?fixedRate=true&period={{outbox.poll.period.ms:100}}")
+    .routeId("core-outbox-poller")
+    .to("sql:select event_id from outbox_event where status in ('NEW','RETRY') "
+        + "and (next_retry_at is null or next_retry_at <= current_timestamp) "
+        + "order by created_at fetch first {{outbox.max.rows:100}} rows only"
+        + "?dataSource=#dataSource&outputType=SelectList")
+    .split(body())
+        .to("direct:publishOutboxEvent")
+    .end();
+
+from("direct:publishOutboxEvent")
+    .setHeader("eventId", simple("${body[event_id]}"))
+    .bean("outboxClaimService", "claim(${header.eventId})")
+    .choice()
+        .when(body().isEqualTo(true))
+            .bean("outboxQueryService", "findById(${header.eventId})")
+            .setHeader("topicName", simple("${body[topic_name]}"))
+            .setHeader("kafka.KEY", simple("${body[message_key]}"))
+            .setHeader("eventType", simple("${body[event_type]}"))
+            .setBody(simple("${body[payload]}"))
+            .toD("kafka:${header.topicName}?brokers={{kafka.bootstrap.servers}}&requestRequiredAcks=all")
+            .bean("outboxStatusService", "markSent(${header.eventId})")
+    .end();
+```
+
+## Bad Example
+
+```java
+from("timer:poll")
+    .bean("outboxRepository", "findAll")
+    .process(e -> {
+        // claim なし、ヘッダ退避なし、for 文で独自送信
+    });
+```

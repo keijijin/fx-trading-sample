@@ -1,0 +1,92 @@
+{
+  "replica_1": {
+    "replicas": 1,
+    "accountPoolSize": 1000,
+    "selectionMode": "round_robin",
+    "script": "k6-trade-stress.js",
+    "modeLabel": "unique-account-brokers-3",
+    "k6": {
+      "average_s": 0.17435424924948814,
+      "fastest_s": 0.136401399,
+      "slowest_s": 0.378425441,
+      "requests_per_sec": 372.7533143867824,
+      "http_req_failed_rate": null,
+      "checks_rate": null
+    },
+    "prometheus": {
+      "http_p95_s": null,
+      "http_p99_s": null,
+      "http_error_rate": null,
+      "saga_p95_s": 30.0,
+      "saga_p99_s": 30.0,
+      "outbox_backlog_max": 8808.0,
+      "hikari_active_max": 3.0,
+      "hikari_pending_max": 0.0,
+      "hikari_max": 10.0,
+      "kafka_lag_max": 16017.0,
+      "pod_cpu_sum_cores": 1.2134000056927874,
+      "pod_memory_sum_bytes": 5725790208.0,
+      "pod_restarts": 0.0
+    }
+  },
+  "replica_3": {
+    "replicas": 3,
+    "accountPoolSize": 1000,
+    "selectionMode": "round_robin",
+    "script": "k6-trade-stress.js",
+    "modeLabel": "unique-account-brokers-3",
+    "k6": {
+      "average_s": 8.212676750668997,
+      "fastest_s": 0.139466546,
+      "slowest_s": 132.562900533,
+      "requests_per_sec": 9.677379994602806,
+      "http_req_failed_rate": null,
+      "checks_rate": null
+    },
+    "prometheus": {
+      "http_p95_s": null,
+      "http_p99_s": null,
+      "http_error_rate": null,
+      "saga_p95_s": 30.0,
+      "saga_p99_s": 30.0,
+      "outbox_backlog_max": 6120.0,
+      "hikari_active_max": 1.0,
+      "hikari_pending_max": 0.0,
+      "hikari_max": 10.0,
+      "kafka_lag_max": 3585.0,
+      "pod_cpu_sum_cores": 1.2563872799276439,
+      "pod_memory_sum_bytes": 15181451264.0,
+      "pod_restarts": 0.0
+    }
+  },
+  "replica_5": {
+    "replicas": 5,
+    "accountPoolSize": 1000,
+    "selectionMode": "round_robin",
+    "script": "k6-trade-stress.js",
+    "modeLabel": "unique-account-brokers-3",
+    "k6": {
+      "average_s": 7.681021582621486,
+      "fastest_s": 0.13911571900000003,
+      "slowest_s": 30.236651661,
+      "requests_per_sec": 6.573279959702361,
+      "http_req_failed_rate": null,
+      "checks_rate": null
+    },
+    "prometheus": {
+      "http_p95_s": null,
+      "http_p99_s": null,
+      "http_error_rate": null,
+      "saga_p95_s": null,
+      "saga_p99_s": null,
+      "outbox_backlog_max": 5.0,
+      "hikari_active_max": 1.0,
+      "hikari_pending_max": 0.0,
+      "hikari_max": 10.0,
+      "kafka_lag_max": 4484.0,
+      "pod_cpu_sum_cores": 1.0822052450210802,
+      "pod_memory_sum_bytes": 24047333376.0,
+      "pod_restarts": 0.0
+    }
+  }
+}

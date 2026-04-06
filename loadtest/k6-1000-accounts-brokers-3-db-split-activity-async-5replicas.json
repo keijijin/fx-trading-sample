@@ -1,0 +1,32 @@
+{
+  "replica_5": {
+    "replicas": 5,
+    "accountPoolSize": 1000,
+    "selectionMode": "round_robin",
+    "script": "k6-1000-accounts-stress.js",
+    "modeLabel": "1000-account-pool-brokers-3-db-split-activity-async",
+    "k6": {
+      "average_s": 0.4095847479461679,
+      "fastest_s": 0.14207222,
+      "slowest_s": 4.5851781879999995,
+      "requests_per_sec": 155.02699585566566,
+      "http_req_failed_rate": null,
+      "checks_rate": null
+    },
+    "prometheus": {
+      "http_p95_s": 1.20307891724904,
+      "http_p99_s": 1.7875246310571478,
+      "http_error_rate": null,
+      "saga_p95_s": null,
+      "saga_p99_s": null,
+      "outbox_backlog_max": 1132.0,
+      "hikari_active_max": 10.0,
+      "hikari_pending_max": 14.0,
+      "hikari_max": 10.0,
+      "kafka_lag_max": 511.0,
+      "pod_cpu_sum_cores": 13.71868734542019,
+      "pod_memory_sum_bytes": 26470785024.0,
+      "pod_restarts": 0.0
+    }
+  }
+}

@@ -1,0 +1,477 @@
+{
+  "namespace": "fx-trading-sample",
+  "fx_core_route_host": "fx-core-service-fx-trading-sample.apps.cluster-dhnjd.dynamic.redhatworkshops.io",
+  "prometheus_host": "fx-prometheus-fx-trading-sample.apps.cluster-dhnjd.dynamic.redhatworkshops.io",
+  "phases_sec": {
+    "warm": 120,
+    "spike": 60,
+    "cool": 120,
+    "total": 300
+  },
+  "k6_rates": {
+    "base_rps": 20,
+    "peak_rps": 100
+  },
+  "k6_thresholds_ms": {
+    "spike_p95": 6000,
+    "spike_p99": 12000
+  },
+  "runs": {
+    "replicas_1": {
+      "replicas": 1,
+      "settle_sleep_sec": 20,
+      "k6_exit_code": 0,
+      "k6_thresholds_passed": true,
+      "k6_summary_metrics": {
+        "raw_metrics_keys": [
+          "http_req_duration{scenario:cool}",
+          "http_req_duration{scenario:spike}",
+          "http_req_tls_handshaking",
+          "checks",
+          "http_req_failed{scenario:cool}",
+          "iterations",
+          "http_req_failed{scenario:spike}",
+          "http_req_connecting",
+          "trade_accepted",
+          "trade_api_latency",
+          "http_req_blocked",
+          "vus",
+          "http_req_duration",
+          "http_req_waiting",
+          "http_req_failed{scenario:warm}",
+          "data_sent",
+          "vus_max",
+          "http_req_duration{scenario:warm}",
+          "http_req_sending",
+          "http_req_failed",
+          "data_received",
+          "http_req_duration{expected_response:true}",
+          "iteration_duration",
+          "http_reqs",
+          "http_req_receiving"
+        ],
+        "http_reqs": {
+          "count": 10802,
+          "rate": 14.520189582673709
+        },
+        "http_req_failed": {
+          "passes": 0,
+          "fails": 10802,
+          "value": 0
+        },
+        "iteration_duration": {
+          "p(95)": 372.4751602,
+          "avg": 673.4755512644871,
+          "min": 137.306762,
+          "med": 152.520768,
+          "max": 22002.706295,
+          "p(90)": 236.24917940000003
+        },
+        "iterations": {
+          "count": 10802,
+          "rate": 14.520189582673709
+        },
+        "http_req_duration": {}
+      },
+      "prometheus_after_test": {
+        "http_p95_s": 0.004881030813373859,
+        "http_req_rate": 46.884848484848476,
+        "kafka_lag_max": 699.0,
+        "outbox_backlog_max": null,
+        "fx_core_tx_p95_s": 0.003447632544554455
+      },
+      "prometheus_by_phase": {
+        "aligned_with_k6_phases_sec": {
+          "warm": 120,
+          "spike": 60,
+          "cool": 120
+        },
+        "step": "15s",
+        "test_start_unix": 1775450025.61869,
+        "phases": {
+          "warm": {
+            "window_unix": {
+              "start": 1775450025.61869,
+              "end": 1775450145.61869
+            },
+            "outbox_backlog_sum": {
+              "min": null,
+              "max": null,
+              "avg": null,
+              "samples": 0
+            },
+            "kafka_lag_max": {
+              "min": 0.0,
+              "max": 99.0,
+              "avg": 80.33333333333333,
+              "samples": 9
+            },
+            "hikaricp_active_sum": {
+              "min": 0.0,
+              "max": 3.0,
+              "avg": 1.3333333333333333,
+              "samples": 9
+            }
+          },
+          "spike": {
+            "window_unix": {
+              "start": 1775450145.61869,
+              "end": 1775450205.61869
+            },
+            "outbox_backlog_sum": {
+              "min": null,
+              "max": null,
+              "avg": null,
+              "samples": 0
+            },
+            "kafka_lag_max": {
+              "min": 97.0,
+              "max": 699.0,
+              "avg": 433.0,
+              "samples": 5
+            },
+            "hikaricp_active_sum": {
+              "min": 0.0,
+              "max": 5.0,
+              "avg": 3.4,
+              "samples": 5
+            }
+          },
+          "cool": {
+            "window_unix": {
+              "start": 1775450205.61869,
+              "end": 1775450325.61869
+            },
+            "outbox_backlog_sum": {
+              "min": null,
+              "max": null,
+              "avg": null,
+              "samples": 0
+            },
+            "kafka_lag_max": {
+              "min": 103.0,
+              "max": 492.0,
+              "avg": 193.22222222222223,
+              "samples": 9
+            },
+            "hikaricp_active_sum": {
+              "min": 0.0,
+              "max": 5.0,
+              "avg": 1.8888888888888888,
+              "samples": 9
+            }
+          }
+        },
+        "test_end_unix": 1775450326.5311098
+      },
+      "timestamps_unix": {
+        "k6_block_start": 1775450025.61869,
+        "k6_block_end": 1775450326.5311098
+      }
+    },
+    "replicas_3": {
+      "replicas": 3,
+      "settle_sleep_sec": 30,
+      "k6_exit_code": 0,
+      "k6_thresholds_passed": true,
+      "k6_summary_metrics": {
+        "raw_metrics_keys": [
+          "http_reqs",
+          "http_req_duration{scenario:cool}",
+          "http_req_duration{scenario:spike}",
+          "http_req_duration{expected_response:true}",
+          "vus_max",
+          "http_req_failed{scenario:spike}",
+          "http_req_tls_handshaking",
+          "http_req_sending",
+          "http_req_failed{scenario:warm}",
+          "http_req_duration{scenario:warm}",
+          "iterations",
+          "http_req_failed{scenario:cool}",
+          "data_received",
+          "trade_accepted",
+          "http_req_failed",
+          "http_req_duration",
+          "http_req_waiting",
+          "vus",
+          "http_req_connecting",
+          "data_sent",
+          "iteration_duration",
+          "http_req_receiving",
+          "trade_api_latency",
+          "http_req_blocked",
+          "checks"
+        ],
+        "http_reqs": {
+          "count": 10802,
+          "rate": 35.98513776344784
+        },
+        "http_req_failed": {
+          "passes": 0,
+          "fails": 10802,
+          "value": 0
+        },
+        "iteration_duration": {
+          "avg": 674.101502507125,
+          "min": 137.345638,
+          "med": 153.955342,
+          "max": 23145.777018,
+          "p(90)": 237.7223368,
+          "p(95)": 371.4355670999999
+        },
+        "iterations": {
+          "count": 10802,
+          "rate": 35.98513776344784
+        },
+        "http_req_duration": {}
+      },
+      "prometheus_after_test": {
+        "http_p95_s": 0.005059639278510638,
+        "http_req_rate": 16.915151515151514,
+        "kafka_lag_max": 1017.0,
+        "outbox_backlog_max": null,
+        "fx_core_tx_p95_s": 0.003503425374999999
+      },
+      "prometheus_by_phase": {
+        "aligned_with_k6_phases_sec": {
+          "warm": 120,
+          "spike": 60,
+          "cool": 120
+        },
+        "step": "15s",
+        "test_start_unix": 1775450371.8364632,
+        "phases": {
+          "warm": {
+            "window_unix": {
+              "start": 1775450371.8364632,
+              "end": 1775450491.8364632
+            },
+            "outbox_backlog_sum": {
+              "min": null,
+              "max": null,
+              "avg": null,
+              "samples": 0
+            },
+            "kafka_lag_max": {
+              "min": 0.0,
+              "max": 139.0,
+              "avg": 100.88888888888889,
+              "samples": 9
+            },
+            "hikaricp_active_sum": {
+              "min": 0.0,
+              "max": 1.0,
+              "avg": 0.4444444444444444,
+              "samples": 9
+            }
+          },
+          "spike": {
+            "window_unix": {
+              "start": 1775450491.8364632,
+              "end": 1775450551.8364632
+            },
+            "outbox_backlog_sum": {
+              "min": null,
+              "max": null,
+              "avg": null,
+              "samples": 0
+            },
+            "kafka_lag_max": {
+              "min": 139.0,
+              "max": 1017.0,
+              "avg": 483.2,
+              "samples": 5
+            },
+            "hikaricp_active_sum": {
+              "min": 0.0,
+              "max": 3.0,
+              "avg": 0.8,
+              "samples": 5
+            }
+          },
+          "cool": {
+            "window_unix": {
+              "start": 1775450551.8364632,
+              "end": 1775450671.8364632
+            },
+            "outbox_backlog_sum": {
+              "min": null,
+              "max": null,
+              "avg": null,
+              "samples": 0
+            },
+            "kafka_lag_max": {
+              "min": 152.0,
+              "max": 721.0,
+              "avg": 302.44444444444446,
+              "samples": 9
+            },
+            "hikaricp_active_sum": {
+              "min": 0.0,
+              "max": 1.0,
+              "avg": 0.3333333333333333,
+              "samples": 9
+            }
+          }
+        },
+        "test_end_unix": 1775450672.735996
+      },
+      "timestamps_unix": {
+        "k6_block_start": 1775450371.8364632,
+        "k6_block_end": 1775450672.735996
+      }
+    },
+    "replicas_5": {
+      "replicas": 5,
+      "settle_sleep_sec": 40,
+      "k6_exit_code": 0,
+      "k6_thresholds_passed": true,
+      "k6_summary_metrics": {
+        "raw_metrics_keys": [
+          "http_reqs",
+          "http_req_duration{expected_response:true}",
+          "http_req_receiving",
+          "data_received",
+          "iterations",
+          "http_req_failed{scenario:cool}",
+          "http_req_failed{scenario:warm}",
+          "trade_api_latency",
+          "vus_max",
+          "http_req_blocked",
+          "http_req_connecting",
+          "data_sent",
+          "http_req_sending",
+          "checks",
+          "vus",
+          "http_req_duration{scenario:cool}",
+          "http_req_failed",
+          "http_req_tls_handshaking",
+          "http_req_failed{scenario:spike}",
+          "http_req_waiting",
+          "http_req_duration",
+          "trade_accepted",
+          "iteration_duration",
+          "http_req_duration{scenario:spike}",
+          "http_req_duration{scenario:warm}"
+        ],
+        "http_reqs": {
+          "count": 10802,
+          "rate": 35.99497656037163
+        },
+        "http_req_failed": {
+          "passes": 0,
+          "fails": 10802,
+          "value": 0
+        },
+        "iteration_duration": {
+          "p(95)": 365.8251509,
+          "avg": 646.5247270192586,
+          "min": 135.685408,
+          "med": 153.7533345,
+          "max": 21145.20359,
+          "p(90)": 237.57016380000002
+        },
+        "iterations": {
+          "count": 10802,
+          "rate": 35.99497656037163
+        },
+        "http_req_duration": {}
+      },
+      "prometheus_after_test": {
+        "http_p95_s": 0.005294123706144066,
+        "http_req_rate": 10.95151515151515,
+        "kafka_lag_max": 1035.0,
+        "outbox_backlog_max": null,
+        "fx_core_tx_p95_s": 0.003488462704545454
+      },
+      "prometheus_by_phase": {
+        "aligned_with_k6_phases_sec": {
+          "warm": 120,
+          "spike": 60,
+          "cool": 120
+        },
+        "step": "15s",
+        "test_start_unix": 1775450728.4081979,
+        "phases": {
+          "warm": {
+            "window_unix": {
+              "start": 1775450728.4081979,
+              "end": 1775450848.4081979
+            },
+            "outbox_backlog_sum": {
+              "min": null,
+              "max": null,
+              "avg": null,
+              "samples": 0
+            },
+            "kafka_lag_max": {
+              "min": 0.0,
+              "max": 183.0,
+              "avg": 147.66666666666666,
+              "samples": 9
+            },
+            "hikaricp_active_sum": {
+              "min": 0.0,
+              "max": 2.0,
+              "avg": 0.5555555555555556,
+              "samples": 9
+            }
+          },
+          "spike": {
+            "window_unix": {
+              "start": 1775450848.4081979,
+              "end": 1775450908.4081979
+            },
+            "outbox_backlog_sum": {
+              "min": null,
+              "max": null,
+              "avg": null,
+              "samples": 0
+            },
+            "kafka_lag_max": {
+              "min": 183.0,
+              "max": 1035.0,
+              "avg": 561.6,
+              "samples": 5
+            },
+            "hikaricp_active_sum": {
+              "min": 0.0,
+              "max": 3.0,
+              "avg": 1.4,
+              "samples": 5
+            }
+          },
+          "cool": {
+            "window_unix": {
+              "start": 1775450908.4081979,
+              "end": 1775451028.4081979
+            },
+            "outbox_backlog_sum": {
+              "min": null,
+              "max": null,
+              "avg": null,
+              "samples": 0
+            },
+            "kafka_lag_max": {
+              "min": 82.0,
+              "max": 941.0,
+              "avg": 298.22222222222223,
+              "samples": 9
+            },
+            "hikaricp_active_sum": {
+              "min": 0.0,
+              "max": 3.0,
+              "avg": 0.5555555555555556,
+              "samples": 9
+            }
+          }
+        },
+        "test_end_unix": 1775451029.083612
+      },
+      "timestamps_unix": {
+        "k6_block_start": 1775450728.4081979,
+        "k6_block_end": 1775451029.083612
+      }
+    }
+  }
+}

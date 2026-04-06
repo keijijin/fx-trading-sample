@@ -1,0 +1,44 @@
+---
+description: Camel 4 の例外ハンドリング規約と実装テンプレート
+globs: **/*.java
+alwaysApply: false
+---
+
+# Camel Exception Handling Standards
+
+- 例外制御は `try/catch` の多用ではなく、まず `onException`、`handled`、`continued`、`deadLetterChannel`、`useOriginalMessage` で設計する。
+- 致命失敗と非致命失敗は別の `onException` に分け、失敗イベント種別と再送方針を明示的に分離する。
+- `RouteBuilder` では例外の分類、ヘッダ付与、失敗イベント発行入口までに留め、補償対象判定や `trade_saga` 更新は Service に委譲する。
+- Kafka / DB / 外部 I/O 失敗は握りつぶさず、`eventId`、`correlationId`、`tradeId`、`orderId` をログと失敗イベントに残す。
+- 再送は手書きループで実装せず、Camel の redelivery 設定か Outbox の再送制御で扱う。
+
+## Good Example
+
+```java
+onException(SQLException.class)
+    .useOriginalMessage()
+    .handled(true)
+    .setHeader("eventType", constant("OutboxPublishFailed"))
+    .bean("failureEventService", "buildOutboxFailure")
+    .to("direct:publishFailureEvent");
+
+onException(NonFatalNotificationException.class)
+    .useOriginalMessage()
+    .handled(true)
+    .setHeader("eventType", constant("TradeNotificationFailed"))
+    .bean("notificationFailureService", "buildNonFatalFailure")
+    .to("kafka:fx-notification-events?brokers={{kafka.bootstrap.servers}}");
+```
+
+## Bad Example
+
+```java
+from("kafka:fx-trade-events")
+    .process(e -> {
+        try {
+            service.handle(e);
+        } catch (Exception ex) {
+            // 例外種別も再送方針も区別せず握りつぶす
+        }
+    });
+```

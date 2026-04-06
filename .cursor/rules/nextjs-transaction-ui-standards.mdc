@@ -1,0 +1,29 @@
+---
+description: Next.jsでトランザクション学習UIを実装する際の基準
+globs: frontend/**/*
+alwaysApply: false
+---
+
+# Next.js Transaction UI Standards
+
+- App Router を前提とし、ページは表示責務に寄せ、シナリオ定義や状態マッピングは別モジュールへ分離する。
+- Client Component は本当に状態操作が必要な箇所だけに使い、説明データや定数はサーバー依存なしで再利用できる形にする。
+- `page.tsx` に業務データを直書きしすぎず、シナリオ、ステップ、スナップショットは型付き定義へ切り出す。
+- スタイルは役割ベースのクラス名で管理し、色名や見た目だけの命名を避ける。
+- 状態表示は `idle`, `running`, `success`, `warning`, `danger` のように UI 用トーンを分け、業務状態文字列と混同しない。
+- アニメーションやインタラクションは理解補助に限定し、情報の順序や整合性を誤解させる演出を入れない。
+- 新しいシナリオを追加するときは、`steps`、`snapshots`、学習ポイントを同時に更新し、配列長をそろえる。
+
+## Good Example
+
+```typescript
+const scenario = scenarios.find((item) => item.id === scenarioId);
+const currentStep = scenario.steps[activeStepIndex];
+const currentSnapshot = scenario.snapshots[activeStepIndex];
+```
+
+## Bad Example
+
+```typescript
+// JSX 内で if 文を重ねて状態遷移と表示文言をその場で組み立てる
+```

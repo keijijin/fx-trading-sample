@@ -1,0 +1,92 @@
+{
+  "replica_1": {
+    "replicas": 1,
+    "accountPoolSize": 1000,
+    "selectionMode": "round_robin",
+    "script": "k6-1000-accounts-stress.js",
+    "modeLabel": "1000-account-pool-brokers-3-db-split",
+    "k6": {
+      "average_s": 0.174528911924604,
+      "fastest_s": 0.139441575,
+      "slowest_s": 0.402471746,
+      "requests_per_sec": 371.31180939929396,
+      "http_req_failed_rate": null,
+      "checks_rate": null
+    },
+    "prometheus": {
+      "http_p95_s": 0.02752183657294662,
+      "http_p99_s": 0.039869519931784565,
+      "http_error_rate": null,
+      "saga_p95_s": null,
+      "saga_p99_s": null,
+      "outbox_backlog_max": 506.0,
+      "hikari_active_max": 0.0,
+      "hikari_pending_max": 0.0,
+      "hikari_max": 10.0,
+      "kafka_lag_max": 687.0,
+      "pod_cpu_sum_cores": 5.541779321623126,
+      "pod_memory_sum_bytes": 6371577856.0,
+      "pod_restarts": 0.0
+    }
+  },
+  "replica_3": {
+    "replicas": 3,
+    "accountPoolSize": 1000,
+    "selectionMode": "round_robin",
+    "script": "k6-1000-accounts-stress.js",
+    "modeLabel": "1000-account-pool-brokers-3-db-split",
+    "k6": {
+      "average_s": 0.17535299851025563,
+      "fastest_s": 0.136962948,
+      "slowest_s": 0.7035682440000001,
+      "requests_per_sec": 372.0230878220994,
+      "http_req_failed_rate": null,
+      "checks_rate": null
+    },
+    "prometheus": {
+      "http_p95_s": 0.03134445686412903,
+      "http_p99_s": 0.06684048154387581,
+      "http_error_rate": 0.14771555555555557,
+      "saga_p95_s": null,
+      "saga_p99_s": null,
+      "outbox_backlog_max": 719.0,
+      "hikari_active_max": 0.0,
+      "hikari_pending_max": 0.0,
+      "hikari_max": 10.0,
+      "kafka_lag_max": 3774.0,
+      "pod_cpu_sum_cores": 12.746267086877362,
+      "pod_memory_sum_bytes": 18021490688.0,
+      "pod_restarts": 0.0
+    }
+  },
+  "replica_5": {
+    "replicas": 5,
+    "accountPoolSize": 1000,
+    "selectionMode": "round_robin",
+    "script": "k6-1000-accounts-stress.js",
+    "modeLabel": "1000-account-pool-brokers-3-db-split",
+    "k6": {
+      "average_s": 3.2404675948414745,
+      "fastest_s": 0.14291954799999998,
+      "slowest_s": 30.260274502,
+      "requests_per_sec": 18.099608355162786,
+      "http_req_failed_rate": null,
+      "checks_rate": null
+    },
+    "prometheus": {
+      "http_p95_s": 0.010066328199999997,
+      "http_p99_s": 0.010961112840000002,
+      "http_error_rate": 0.0,
+      "saga_p95_s": null,
+      "saga_p99_s": null,
+      "outbox_backlog_max": 583.0,
+      "hikari_active_max": 0.0,
+      "hikari_pending_max": 0.0,
+      "hikari_max": 10.0,
+      "kafka_lag_max": 7748.0,
+      "pod_cpu_sum_cores": 1.6829240364680365,
+      "pod_memory_sum_bytes": 28419497984.0,
+      "pod_restarts": 0.0
+    }
+  }
+}

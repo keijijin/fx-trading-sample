@@ -1,0 +1,56 @@
+{
+  "replica_1": {
+    "replicas": 1,
+    "hey": {
+      "average_s": 0.1731,
+      "fastest_s": 0.1376,
+      "slowest_s": 0.3611,
+      "requests_per_sec": 172.8277,
+      "status_counts": {
+        "409": 7817
+      }
+    },
+    "prometheus": {
+      "http_p95_s": null,
+      "http_p99_s": null,
+      "http_error_rate": 145.42222222222222,
+      "saga_p95_s": null,
+      "saga_p99_s": null,
+      "outbox_backlog_max": 0.0,
+      "hikari_active_max": 0.0,
+      "hikari_pending_max": 0.0,
+      "hikari_max": 10.0,
+      "kafka_lag_max": 0.0,
+      "pod_cpu_sum_cores": 0.3812121364628432,
+      "pod_memory_sum_bytes": 6000971776.0,
+      "pod_restarts": 0.0
+    }
+  },
+  "replica_3": {
+    "replicas": 3,
+    "hey": {
+      "average_s": 0.177,
+      "fastest_s": 0.1413,
+      "slowest_s": 0.6051,
+      "requests_per_sec": 169.374,
+      "status_counts": {
+        "409": 7635
+      }
+    },
+    "prometheus": {
+      "http_p95_s": null,
+      "http_p99_s": null,
+      "http_error_rate": 61.7111111111111,
+      "saga_p95_s": null,
+      "saga_p99_s": null,
+      "outbox_backlog_max": 0.0,
+      "hikari_active_max": 1.0,
+      "hikari_pending_max": 0.0,
+      "hikari_max": 10.0,
+      "kafka_lag_max": 0.0,
+      "pod_cpu_sum_cores": 3.6997796746627234,
+      "pod_memory_sum_bytes": 15048765440.0,
+      "pod_restarts": 0.0
+    }
+  }
+}

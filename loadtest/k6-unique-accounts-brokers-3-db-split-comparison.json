@@ -1,0 +1,92 @@
+{
+  "replica_1": {
+    "replicas": 1,
+    "accountPoolSize": 1000,
+    "selectionMode": "round_robin",
+    "script": "k6-trade-stress.js",
+    "modeLabel": "unique-account-brokers-3-db-split",
+    "k6": {
+      "average_s": 0.1733196656081567,
+      "fastest_s": 0.13638306600000002,
+      "slowest_s": 0.260592394,
+      "requests_per_sec": 377.2346342770377,
+      "http_req_failed_rate": null,
+      "checks_rate": null
+    },
+    "prometheus": {
+      "http_p95_s": 0.026561555086864416,
+      "http_p99_s": 0.03822173093192779,
+      "http_error_rate": 0.0,
+      "saga_p95_s": null,
+      "saga_p99_s": null,
+      "outbox_backlog_max": 359.0,
+      "hikari_active_max": 2.0,
+      "hikari_pending_max": 0.0,
+      "hikari_max": 10.0,
+      "kafka_lag_max": 17606.0,
+      "pod_cpu_sum_cores": 1.3662721422010045,
+      "pod_memory_sum_bytes": 7080751104.0,
+      "pod_restarts": 0.0
+    }
+  },
+  "replica_3": {
+    "replicas": 3,
+    "accountPoolSize": 1000,
+    "selectionMode": "round_robin",
+    "script": "k6-trade-stress.js",
+    "modeLabel": "unique-account-brokers-3-db-split",
+    "k6": {
+      "average_s": 8.103123292633333,
+      "fastest_s": 0.14054521399999997,
+      "slowest_s": 30.246001153,
+      "requests_per_sec": 7.049033367464126,
+      "http_req_failed_rate": null,
+      "checks_rate": null
+    },
+    "prometheus": {
+      "http_p95_s": 0.009786708,
+      "http_p99_s": 0.013281960500000004,
+      "http_error_rate": 0.0,
+      "saga_p95_s": null,
+      "saga_p99_s": null,
+      "outbox_backlog_max": 10.0,
+      "hikari_active_max": 1.0,
+      "hikari_pending_max": 0.0,
+      "hikari_max": 10.0,
+      "kafka_lag_max": 18458.0,
+      "pod_cpu_sum_cores": 0.6541898749592564,
+      "pod_memory_sum_bytes": 18131468288.0,
+      "pod_restarts": 0.0
+    }
+  },
+  "replica_5": {
+    "replicas": 5,
+    "accountPoolSize": 1000,
+    "selectionMode": "round_robin",
+    "script": "k6-trade-stress.js",
+    "modeLabel": "unique-account-brokers-3-db-split",
+    "k6": {
+      "average_s": 9.640699493395134,
+      "fastest_s": 0.14065813,
+      "slowest_s": 30.236407666999998,
+      "requests_per_sec": 5.808620255665824,
+      "http_req_failed_rate": null,
+      "checks_rate": null
+    },
+    "prometheus": {
+      "http_p95_s": 0.009157562549999995,
+      "http_p99_s": 0.01065353062,
+      "http_error_rate": 0.0,
+      "saga_p95_s": null,
+      "saga_p99_s": null,
+      "outbox_backlog_max": 14.0,
+      "hikari_active_max": 0.0,
+      "hikari_pending_max": 0.0,
+      "hikari_max": 10.0,
+      "kafka_lag_max": 75.0,
+      "pod_cpu_sum_cores": 1.848449966820815,
+      "pod_memory_sum_bytes": 27240337408.0,
+      "pod_restarts": 0.0
+    }
+  }
+}

@@ -1,0 +1,85 @@
+spring:
+  application:
+    name: fx-core-service
+  datasource:
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:fx_trading}
+    username: ${DB_USER:fx}
+    password: ${DB_PASSWORD:fx}
+    hikari:
+      # Keep the per-pod pool deliberately small so 3-5 replicas do not exhaust fx-core-db.
+      maximum-pool-size: ${DB_POOL_MAX_SIZE:8}
+      minimum-idle: ${DB_POOL_MIN_IDLE:2}
+      connection-timeout: ${DB_POOL_CONNECTION_TIMEOUT_MS:5000}
+      idle-timeout: ${DB_POOL_IDLE_TIMEOUT_MS:30000}
+      max-lifetime: ${DB_POOL_MAX_LIFETIME_MS:300000}
+  jackson:
+    serialization:
+      write-dates-as-timestamps: false
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus
+  endpoint:
+    health:
+      probes:
+        enabled: true
+      show-details: always
+  metrics:
+    tags:
+      application: ${spring.application.name}
+    distribution:
+      percentiles-histogram:
+        http:
+          server:
+            requests: true
+  tracing:
+    sampling:
+      probability: 1.0
+  otlp:
+    tracing:
+      endpoint: ${OTEL_EXPORTER_OTLP_ENDPOINT:http://tempo:4318/v1/traces}
+
+observability:
+  loki:
+    url: ${LOKI_URL:}
+
+logging:
+  include-application-name: true
+  pattern:
+    level: "%5p traceId=%X{traceId:-} spanId=%X{spanId:-}"
+
+camel:
+  springboot:
+    main-run-controller: true
+  main:
+    run-controller: true
+  component:
+    kafka:
+      additional-properties:
+        partition.assignment.strategy: org.apache.kafka.clients.consumer.CooperativeStickyAssignor
+
+server:
+  port: ${SERVER_PORT:8080}
+
+balance:
+  bucket:
+    count: ${BALANCE_BUCKET_COUNT:16}
+
+# Second datasource for trade_saga / trade_activity (same URL as primary when unset).
+activity:
+  db:
+    pool:
+      max-size: ${ACTIVITY_DB_POOL_MAX_SIZE:15}
+
+kafka:
+  bootstrap:
+    servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+
+outbox:
+  poll:
+    period:
+      ms: ${OUTBOX_POLL_PERIOD_MS:100}
+  max:
+    rows: ${OUTBOX_MAX_ROWS:100}

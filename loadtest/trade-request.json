@@ -1,0 +1,14 @@
+{
+  "accountId": "ACC-LOAD-001",
+  "currencyPair": "USD/JPY",
+  "side": "BUY",
+  "orderAmount": 1.0,
+  "requestedPrice": 151.25,
+  "simulateCoverFailure": false,
+  "simulateRiskFailure": false,
+  "simulateAccountingFailure": false,
+  "simulateSettlementFailure": false,
+  "simulateNotificationFailure": false,
+  "simulateComplianceFailure": false,
+  "preTradeComplianceFailure": false
+}

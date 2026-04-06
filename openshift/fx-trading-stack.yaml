@@ -1,0 +1,825 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: fx-postgres-init
+data:
+  init.sql: |
+    CREATE TABLE IF NOT EXISTS trade_order (
+        order_id VARCHAR(64) PRIMARY KEY,
+        account_id VARCHAR(64) NOT NULL,
+        currency_pair VARCHAR(16) NOT NULL,
+        side VARCHAR(8) NOT NULL,
+        order_type VARCHAR(16) NOT NULL,
+        order_amount DECIMAL(18,2) NOT NULL,
+        order_status VARCHAR(32) NOT NULL,
+        created_at TIMESTAMP NOT NULL,
+        updated_at TIMESTAMP NOT NULL,
+        version_no INTEGER NOT NULL DEFAULT 0
+    );
+
+    CREATE TABLE IF NOT EXISTS trade_execution (
+        trade_id VARCHAR(64) PRIMARY KEY,
+        order_id VARCHAR(64) NOT NULL,
+        account_id VARCHAR(64) NOT NULL,
+        currency_pair VARCHAR(16) NOT NULL,
+        side VARCHAR(8) NOT NULL,
+        executed_price DECIMAL(18,8) NOT NULL,
+        executed_amount DECIMAL(18,2) NOT NULL,
+        execution_status VARCHAR(32) NOT NULL,
+        executed_at TIMESTAMP NOT NULL,
+        version_no INTEGER NOT NULL DEFAULT 0,
+        CONSTRAINT uk_trade_execution_order UNIQUE (order_id)
+    );
+
+    CREATE TABLE IF NOT EXISTS account_balance (
+        account_id VARCHAR(64) NOT NULL,
+        currency VARCHAR(3) NOT NULL,
+        available_balance DECIMAL(18,2) NOT NULL,
+        held_balance DECIMAL(18,2) NOT NULL,
+        updated_at TIMESTAMP NOT NULL,
+        version_no INTEGER NOT NULL DEFAULT 0,
+        PRIMARY KEY (account_id, currency)
+    );
+
+    CREATE TABLE IF NOT EXISTS balance_hold (
+        hold_id VARCHAR(64) PRIMARY KEY,
+        trade_id VARCHAR(64) NOT NULL,
+        account_id VARCHAR(64) NOT NULL,
+        hold_amount DECIMAL(18,2) NOT NULL,
+        hold_status VARCHAR(32) NOT NULL,
+        created_at TIMESTAMP NOT NULL,
+        updated_at TIMESTAMP NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS fx_position (
+        position_id VARCHAR(64) PRIMARY KEY,
+        account_id VARCHAR(64) NOT NULL,
+        currency_pair VARCHAR(16) NOT NULL,
+        net_amount DECIMAL(18,2) NOT NULL,
+        average_price DECIMAL(18,8) NOT NULL,
+        updated_at TIMESTAMP NOT NULL,
+        version_no INTEGER NOT NULL DEFAULT 0
+    );
+
+    CREATE TABLE IF NOT EXISTS trade_saga (
+        trade_id VARCHAR(64) PRIMARY KEY,
+        order_id VARCHAR(64) NOT NULL,
+        saga_status VARCHAR(32) NOT NULL,
+        cover_status VARCHAR(32) NOT NULL,
+        risk_status VARCHAR(32) NOT NULL,
+        accounting_status VARCHAR(32) NOT NULL,
+        settlement_status VARCHAR(32) NOT NULL,
+        notification_status VARCHAR(32) NOT NULL,
+        compliance_status VARCHAR(32) NOT NULL,
+        cover_cancel_requested BOOLEAN NOT NULL DEFAULT FALSE,
+        risk_cancel_requested BOOLEAN NOT NULL DEFAULT FALSE,
+        accounting_cancel_requested BOOLEAN NOT NULL DEFAULT FALSE,
+        settlement_cancel_requested BOOLEAN NOT NULL DEFAULT FALSE,
+        correlation_id VARCHAR(128) NOT NULL,
+        created_at TIMESTAMP NOT NULL,
+        updated_at TIMESTAMP NOT NULL,
+        version_no INTEGER NOT NULL DEFAULT 0
+    );
+
+    CREATE TABLE IF NOT EXISTS outbox_event (
+        event_id VARCHAR(64) PRIMARY KEY,
+        aggregate_type VARCHAR(64) NOT NULL,
+        aggregate_id VARCHAR(64) NOT NULL,
+        event_type VARCHAR(64) NOT NULL,
+        topic_name VARCHAR(128) NOT NULL,
+        message_key VARCHAR(128) NOT NULL,
+        payload TEXT NOT NULL,
+        status VARCHAR(16) NOT NULL,
+        retry_count INTEGER NOT NULL DEFAULT 0,
+        next_retry_at TIMESTAMP NULL,
+        correlation_id VARCHAR(128) NOT NULL,
+        source_service VARCHAR(64) NOT NULL,
+        created_at TIMESTAMP NOT NULL,
+        sent_at TIMESTAMP NULL,
+        last_error_message VARCHAR(1024),
+        version_no INTEGER NOT NULL DEFAULT 0
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_outbox_event_aggregate_id ON outbox_event(aggregate_id);
+    CREATE INDEX IF NOT EXISTS idx_outbox_event_poll ON outbox_event(source_service, status, created_at)
+        WHERE status IN ('NEW', 'RETRY');
+
+    CREATE TABLE IF NOT EXISTS processed_message (
+        consumer_name VARCHAR(64) NOT NULL,
+        event_id VARCHAR(64) NOT NULL,
+        processed_at TIMESTAMP NOT NULL,
+        PRIMARY KEY (consumer_name, event_id)
+    );
+
+    CREATE TABLE IF NOT EXISTS cover_trade (
+        cover_trade_id VARCHAR(64) PRIMARY KEY,
+        trade_id VARCHAR(64) NOT NULL,
+        cover_status VARCHAR(32) NOT NULL,
+        created_at TIMESTAMP NOT NULL,
+        updated_at TIMESTAMP NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS risk_record (
+        risk_record_id VARCHAR(64) PRIMARY KEY,
+        trade_id VARCHAR(64) NOT NULL,
+        risk_status VARCHAR(32) NOT NULL,
+        created_at TIMESTAMP NOT NULL,
+        updated_at TIMESTAMP NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS accounting_entry (
+        accounting_entry_id VARCHAR(64) PRIMARY KEY,
+        trade_id VARCHAR(64) NOT NULL,
+        accounting_status VARCHAR(32) NOT NULL,
+        created_at TIMESTAMP NOT NULL,
+        updated_at TIMESTAMP NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS settlement_record (
+        settlement_record_id VARCHAR(64) PRIMARY KEY,
+        trade_id VARCHAR(64) NOT NULL,
+        settlement_status VARCHAR(32) NOT NULL,
+        created_at TIMESTAMP NOT NULL,
+        updated_at TIMESTAMP NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS notification_record (
+        notification_id VARCHAR(64) PRIMARY KEY,
+        trade_id VARCHAR(64) NOT NULL,
+        notification_type VARCHAR(64) NOT NULL,
+        notification_status VARCHAR(32) NOT NULL,
+        created_at TIMESTAMP NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS compliance_record (
+        compliance_id VARCHAR(64) PRIMARY KEY,
+        trade_id VARCHAR(64) NOT NULL,
+        compliance_status VARCHAR(32) NOT NULL,
+        created_at TIMESTAMP NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS trade_activity (
+        activity_id VARCHAR(64) PRIMARY KEY,
+        trade_id VARCHAR(64) NOT NULL,
+        service_name VARCHAR(64) NOT NULL,
+        activity_type VARCHAR(64) NOT NULL,
+        activity_status VARCHAR(64) NOT NULL,
+        detail VARCHAR(1024) NOT NULL,
+        event_type VARCHAR(64),
+        topic_name VARCHAR(128),
+        created_at TIMESTAMP NOT NULL
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_trade_activity_trade_id ON trade_activity(trade_id);
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: fx-postgres
+spec:
+  selector:
+    app: fx-postgres
+  ports:
+    - name: postgres
+      port: 5432
+      targetPort: 5432
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: fx-kafka
+spec:
+  selector:
+    app: fx-kafka
+  ports:
+    - name: client
+      port: 9092
+      targetPort: 9092
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: fx-kafka-headless
+spec:
+  clusterIP: None
+  publishNotReadyAddresses: true
+  selector:
+    app: fx-kafka
+  ports:
+    - name: client
+      port: 9092
+      targetPort: 9092
+    - name: controller
+      port: 9093
+      targetPort: 9093
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: fx-core-service
+spec:
+  selector:
+    app: fx-core-service
+  ports:
+    - name: http
+      port: 8080
+      targetPort: 8080
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: trade-saga-service
+spec:
+  selector:
+    app: trade-saga-service
+  ports:
+    - name: http
+      port: 8081
+      targetPort: 8081
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: cover-service
+spec:
+  selector:
+    app: cover-service
+  ports:
+    - name: http
+      port: 8082
+      targetPort: 8082
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: risk-service
+spec:
+  selector:
+    app: risk-service
+  ports:
+    - name: http
+      port: 8083
+      targetPort: 8083
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: accounting-service
+spec:
+  selector:
+    app: accounting-service
+  ports:
+    - name: http
+      port: 8084
+      targetPort: 8084
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: settlement-service
+spec:
+  selector:
+    app: settlement-service
+  ports:
+    - name: http
+      port: 8085
+      targetPort: 8085
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: notification-service
+spec:
+  selector:
+    app: notification-service
+  ports:
+    - name: http
+      port: 8086
+      targetPort: 8086
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: compliance-service
+spec:
+  selector:
+    app: compliance-service
+  ports:
+    - name: http
+      port: 8087
+      targetPort: 8087
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: fx-frontend
+spec:
+  selector:
+    app: fx-frontend
+  ports:
+    - name: http
+      port: 3000
+      targetPort: 3000
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: fx-postgres
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: fx-postgres
+  template:
+    metadata:
+      labels:
+        app: fx-postgres
+    spec:
+      containers:
+        - name: postgres
+          image: image-registry.openshift-image-registry.svc:5000/fx-trading-sample/fx-postgres:latest
+          imagePullPolicy: Always
+          env:
+            - name: POSTGRES_DB
+              value: fx_trading
+            - name: POSTGRES_USER
+              value: fx
+            - name: POSTGRES_PASSWORD
+              value: fx
+            - name: PGDATA
+              value: /tmp/pgdata
+          ports:
+            - containerPort: 5432
+              name: postgres
+          volumeMounts:
+            - name: initdb
+              mountPath: /docker-entrypoint-initdb.d
+      volumes:
+        - name: initdb
+          configMap:
+            name: fx-postgres-init
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: fx-kafka
+spec:
+  serviceName: fx-kafka-headless
+  replicas: 3
+  selector:
+    matchLabels:
+      app: fx-kafka
+  template:
+    metadata:
+      labels:
+        app: fx-kafka
+    spec:
+      containers:
+        - name: kafka
+          image: image-registry.openshift-image-registry.svc:5000/fx-trading-sample/fx-kafka:latest
+          imagePullPolicy: Always
+          command:
+            - /bin/bash
+            - -ec
+            - |
+              export KAFKA_NODE_ID="${HOSTNAME##*-}"
+              export KAFKA_ADVERTISED_LISTENERS="PLAINTEXT://${HOSTNAME}.fx-kafka-headless.fx-trading-sample.svc.cluster.local:9092"
+              export KAFKA_CONTROLLER_QUORUM_VOTERS="0@fx-kafka-0.fx-kafka-headless.fx-trading-sample.svc.cluster.local:9093,1@fx-kafka-1.fx-kafka-headless.fx-trading-sample.svc.cluster.local:9093,2@fx-kafka-2.fx-kafka-headless.fx-trading-sample.svc.cluster.local:9093"
+              exec /etc/kafka/docker/run
+          env:
+            - name: KAFKA_PROCESS_ROLES
+              value: broker,controller
+            - name: KAFKA_LISTENERS
+              value: PLAINTEXT://:9092,CONTROLLER://:9093
+            - name: KAFKA_CONTROLLER_LISTENER_NAMES
+              value: CONTROLLER
+            - name: KAFKA_LISTENER_SECURITY_PROTOCOL_MAP
+              value: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT
+            - name: KAFKA_INTER_BROKER_LISTENER_NAME
+              value: PLAINTEXT
+            - name: KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR
+              value: "3"
+            - name: KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR
+              value: "3"
+            - name: KAFKA_TRANSACTION_STATE_LOG_MIN_ISR
+              value: "2"
+            - name: KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS
+              value: "0"
+            - name: KAFKA_DEFAULT_REPLICATION_FACTOR
+              value: "3"
+            - name: KAFKA_MIN_INSYNC_REPLICAS
+              value: "2"
+            - name: KAFKA_NUM_PARTITIONS
+              value: "6"
+            - name: KAFKA_LOG_DIRS
+              value: /tmp/kraft-combined-logs
+          ports:
+            - containerPort: 9092
+              name: client
+            - containerPort: 9093
+              name: controller
+          volumeMounts:
+            - name: kafka-data
+              mountPath: /tmp/kraft-combined-logs
+      volumes:
+        - name: kafka-data
+          emptyDir: {}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: fx-core-service
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: fx-core-service
+  template:
+    metadata:
+      labels:
+        app: fx-core-service
+    spec:
+      containers:
+        - name: fx-core-service
+          image: image-registry.openshift-image-registry.svc:5000/fx-trading-sample/fx-core-service:latest
+          imagePullPolicy: Always
+          env:
+            - name: DB_HOST
+              value: fx-postgres
+            - name: DB_PORT
+              value: "5432"
+            - name: DB_NAME
+              value: fx_trading
+            - name: DB_USER
+              value: fx
+            - name: DB_PASSWORD
+              value: fx
+            - name: KAFKA_BOOTSTRAP_SERVERS
+              value: fx-kafka:9092
+            - name: SERVER_PORT
+              value: "8080"
+            - name: OUTBOX_POLL_PERIOD_MS
+              value: "100"
+            - name: OTEL_EXPORTER_OTLP_ENDPOINT
+              value: http://fx-tempo:4318/v1/traces
+            - name: LOKI_URL
+              value: http://fx-loki:3100/loki/api/v1/push
+          ports:
+            - containerPort: 8080
+              name: http
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: trade-saga-service
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: trade-saga-service
+  template:
+    metadata:
+      labels:
+        app: trade-saga-service
+    spec:
+      containers:
+        - name: trade-saga-service
+          image: image-registry.openshift-image-registry.svc:5000/fx-trading-sample/trade-saga-service:latest
+          imagePullPolicy: Always
+          env:
+            - name: DB_HOST
+              value: fx-postgres
+            - name: DB_PORT
+              value: "5432"
+            - name: DB_NAME
+              value: fx_trading
+            - name: DB_USER
+              value: fx
+            - name: DB_PASSWORD
+              value: fx
+            - name: KAFKA_BOOTSTRAP_SERVERS
+              value: fx-kafka:9092
+            - name: SERVER_PORT
+              value: "8081"
+            - name: OUTBOX_POLL_PERIOD_MS
+              value: "100"
+            - name: OTEL_EXPORTER_OTLP_ENDPOINT
+              value: http://fx-tempo:4318/v1/traces
+            - name: LOKI_URL
+              value: http://fx-loki:3100/loki/api/v1/push
+          ports:
+            - containerPort: 8081
+              name: http
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cover-service
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: cover-service
+  template:
+    metadata:
+      labels:
+        app: cover-service
+    spec:
+      containers:
+        - name: cover-service
+          image: image-registry.openshift-image-registry.svc:5000/fx-trading-sample/cover-service:latest
+          imagePullPolicy: Always
+          env:
+            - name: DB_HOST
+              value: fx-postgres
+            - name: DB_PORT
+              value: "5432"
+            - name: DB_NAME
+              value: fx_trading
+            - name: DB_USER
+              value: fx
+            - name: DB_PASSWORD
+              value: fx
+            - name: KAFKA_BOOTSTRAP_SERVERS
+              value: fx-kafka:9092
+            - name: SERVER_PORT
+              value: "8082"
+            - name: OUTBOX_POLL_PERIOD_MS
+              value: "100"
+            - name: OTEL_EXPORTER_OTLP_ENDPOINT
+              value: http://fx-tempo:4318/v1/traces
+            - name: LOKI_URL
+              value: http://fx-loki:3100/loki/api/v1/push
+          ports:
+            - containerPort: 8082
+              name: http
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: risk-service
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: risk-service
+  template:
+    metadata:
+      labels:
+        app: risk-service
+    spec:
+      containers:
+        - name: risk-service
+          image: image-registry.openshift-image-registry.svc:5000/fx-trading-sample/risk-service:latest
+          imagePullPolicy: Always
+          env:
+            - name: DB_HOST
+              value: fx-postgres
+            - name: DB_PORT
+              value: "5432"
+            - name: DB_NAME
+              value: fx_trading
+            - name: DB_USER
+              value: fx
+            - name: DB_PASSWORD
+              value: fx
+            - name: KAFKA_BOOTSTRAP_SERVERS
+              value: fx-kafka:9092
+            - name: SERVER_PORT
+              value: "8083"
+            - name: OUTBOX_POLL_PERIOD_MS
+              value: "100"
+            - name: OTEL_EXPORTER_OTLP_ENDPOINT
+              value: http://fx-tempo:4318/v1/traces
+            - name: LOKI_URL
+              value: http://fx-loki:3100/loki/api/v1/push
+          ports:
+            - containerPort: 8083
+              name: http
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: accounting-service
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: accounting-service
+  template:
+    metadata:
+      labels:
+        app: accounting-service
+    spec:
+      containers:
+        - name: accounting-service
+          image: image-registry.openshift-image-registry.svc:5000/fx-trading-sample/accounting-service:latest
+          imagePullPolicy: Always
+          env:
+            - name: DB_HOST
+              value: fx-postgres
+            - name: DB_PORT
+              value: "5432"
+            - name: DB_NAME
+              value: fx_trading
+            - name: DB_USER
+              value: fx
+            - name: DB_PASSWORD
+              value: fx
+            - name: KAFKA_BOOTSTRAP_SERVERS
+              value: fx-kafka:9092
+            - name: SERVER_PORT
+              value: "8084"
+            - name: OUTBOX_POLL_PERIOD_MS
+              value: "100"
+            - name: OTEL_EXPORTER_OTLP_ENDPOINT
+              value: http://fx-tempo:4318/v1/traces
+            - name: LOKI_URL
+              value: http://fx-loki:3100/loki/api/v1/push
+          ports:
+            - containerPort: 8084
+              name: http
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: settlement-service
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: settlement-service
+  template:
+    metadata:
+      labels:
+        app: settlement-service
+    spec:
+      containers:
+        - name: settlement-service
+          image: image-registry.openshift-image-registry.svc:5000/fx-trading-sample/settlement-service:latest
+          imagePullPolicy: Always
+          env:
+            - name: DB_HOST
+              value: fx-postgres
+            - name: DB_PORT
+              value: "5432"
+            - name: DB_NAME
+              value: fx_trading
+            - name: DB_USER
+              value: fx
+            - name: DB_PASSWORD
+              value: fx
+            - name: KAFKA_BOOTSTRAP_SERVERS
+              value: fx-kafka:9092
+            - name: SERVER_PORT
+              value: "8085"
+            - name: OUTBOX_POLL_PERIOD_MS
+              value: "100"
+            - name: OTEL_EXPORTER_OTLP_ENDPOINT
+              value: http://fx-tempo:4318/v1/traces
+            - name: LOKI_URL
+              value: http://fx-loki:3100/loki/api/v1/push
+          ports:
+            - containerPort: 8085
+              name: http
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: notification-service
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: notification-service
+  template:
+    metadata:
+      labels:
+        app: notification-service
+    spec:
+      containers:
+        - name: notification-service
+          image: image-registry.openshift-image-registry.svc:5000/fx-trading-sample/notification-service:latest
+          imagePullPolicy: Always
+          env:
+            - name: DB_HOST
+              value: fx-postgres
+            - name: DB_PORT
+              value: "5432"
+            - name: DB_NAME
+              value: fx_trading
+            - name: DB_USER
+              value: fx
+            - name: DB_PASSWORD
+              value: fx
+            - name: KAFKA_BOOTSTRAP_SERVERS
+              value: fx-kafka:9092
+            - name: SERVER_PORT
+              value: "8086"
+            - name: OUTBOX_POLL_PERIOD_MS
+              value: "100"
+            - name: OTEL_EXPORTER_OTLP_ENDPOINT
+              value: http://fx-tempo:4318/v1/traces
+            - name: LOKI_URL
+              value: http://fx-loki:3100/loki/api/v1/push
+          ports:
+            - containerPort: 8086
+              name: http
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: compliance-service
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: compliance-service
+  template:
+    metadata:
+      labels:
+        app: compliance-service
+    spec:
+      containers:
+        - name: compliance-service
+          image: image-registry.openshift-image-registry.svc:5000/fx-trading-sample/compliance-service:latest
+          imagePullPolicy: Always
+          env:
+            - name: DB_HOST
+              value: fx-postgres
+            - name: DB_PORT
+              value: "5432"
+            - name: DB_NAME
+              value: fx_trading
+            - name: DB_USER
+              value: fx
+            - name: DB_PASSWORD
+              value: fx
+            - name: KAFKA_BOOTSTRAP_SERVERS
+              value: fx-kafka:9092
+            - name: SERVER_PORT
+              value: "8087"
+            - name: OUTBOX_POLL_PERIOD_MS
+              value: "100"
+            - name: OTEL_EXPORTER_OTLP_ENDPOINT
+              value: http://fx-tempo:4318/v1/traces
+            - name: LOKI_URL
+              value: http://fx-loki:3100/loki/api/v1/push
+          ports:
+            - containerPort: 8087
+              name: http
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: fx-frontend
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: fx-frontend
+  template:
+    metadata:
+      labels:
+        app: fx-frontend
+    spec:
+      containers:
+        - name: frontend
+          image: image-registry.openshift-image-registry.svc:5000/fx-trading-sample/frontend:latest
+          imagePullPolicy: Always
+          env:
+            - name: FX_CORE_BASE_URL
+              value: http://fx-core-service:8080
+            - name: PORT
+              value: "3000"
+            - name: HOSTNAME
+              value: 0.0.0.0
+            - name: NEXT_TELEMETRY_DISABLED
+              value: "1"
+          ports:
+            - containerPort: 3000
+              name: http
+---
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: fx-frontend
+spec:
+  to:
+    kind: Service
+    name: fx-frontend
+  port:
+    targetPort: http
+---
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: fx-core-service
+  annotations:
+    haproxy.router.openshift.io/timeout: 120s
+spec:
+  to:
+    kind: Service
+    name: fx-core-service
+  port:
+    targetPort: http

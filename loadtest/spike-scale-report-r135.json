@@ -1,0 +1,213 @@
+{
+  "namespace": "fx-trading-sample",
+  "fx_core_route_host": "fx-core-service-fx-trading-sample.apps.cluster-dhnjd.dynamic.redhatworkshops.io",
+  "prometheus_host": "fx-prometheus-fx-trading-sample.apps.cluster-dhnjd.dynamic.redhatworkshops.io",
+  "phases_sec": {
+    "warm": 45,
+    "spike": 25,
+    "cool": 45,
+    "total": 115
+  },
+  "k6_rates": {
+    "base_rps": 20,
+    "peak_rps": 100
+  },
+  "k6_thresholds_ms": {
+    "spike_p95": 6000,
+    "spike_p99": 12000
+  },
+  "runs": {
+    "replicas_1": {
+      "replicas": 1,
+      "settle_sleep_sec": 20,
+      "k6_exit_code": 0,
+      "k6_thresholds_passed": true,
+      "k6_summary_metrics": {
+        "raw_metrics_keys": [
+          "http_req_blocked",
+          "http_req_sending",
+          "iteration_duration",
+          "vus",
+          "http_req_duration{scenario:warm}",
+          "http_req_duration{expected_response:true}",
+          "data_received",
+          "checks",
+          "http_reqs",
+          "http_req_receiving",
+          "data_sent",
+          "http_req_duration{scenario:spike}",
+          "http_req_failed{scenario:cool}",
+          "trade_api_latency",
+          "http_req_failed",
+          "http_req_tls_handshaking",
+          "http_req_duration{scenario:cool}",
+          "http_req_duration",
+          "trade_accepted",
+          "http_req_waiting",
+          "vus_max",
+          "http_req_failed{scenario:warm}",
+          "http_req_failed{scenario:spike}",
+          "http_req_connecting",
+          "iterations"
+        ],
+        "http_reqs": {
+          "count": 4302,
+          "rate": 37.33000764336575
+        },
+        "http_req_failed": {
+          "passes": 0,
+          "fails": 4302,
+          "value": 0
+        },
+        "iteration_duration": {
+          "p(90)": 7524.569360600001,
+          "p(95)": 10532.9212681,
+          "avg": 1489.7987285674114,
+          "min": 136.575102,
+          "med": 160.56271099999998,
+          "max": 24144.075899
+        },
+        "iterations": {
+          "count": 4302,
+          "rate": 37.33000764336575
+        },
+        "http_req_duration": {}
+      },
+      "prometheus_after_test": {
+        "http_p95_s": 0.004794866051777778,
+        "http_req_rate": 25.618181818181814,
+        "kafka_lag_max": 1026.0,
+        "outbox_backlog_max": 14.0,
+        "fx_core_tx_p95_s": 0.0034342827187499995
+      }
+    },
+    "replicas_3": {
+      "replicas": 3,
+      "settle_sleep_sec": 30,
+      "k6_exit_code": 0,
+      "k6_thresholds_passed": true,
+      "k6_summary_metrics": {
+        "raw_metrics_keys": [
+          "http_req_failed{scenario:warm}",
+          "data_sent",
+          "http_req_duration{scenario:spike}",
+          "http_req_duration{scenario:warm}",
+          "checks",
+          "vus_max",
+          "http_reqs",
+          "http_req_connecting",
+          "http_req_failed{scenario:spike}",
+          "trade_api_latency",
+          "data_received",
+          "vus",
+          "http_req_tls_handshaking",
+          "http_req_blocked",
+          "http_req_sending",
+          "http_req_waiting",
+          "http_req_receiving",
+          "http_req_duration{scenario:cool}",
+          "trade_accepted",
+          "http_req_duration",
+          "http_req_failed{scenario:cool}",
+          "http_req_failed",
+          "http_req_duration{expected_response:true}",
+          "iteration_duration",
+          "iterations"
+        ],
+        "http_reqs": {
+          "count": 4302,
+          "rate": 37.35160957075423
+        },
+        "http_req_failed": {
+          "passes": 0,
+          "fails": 4302,
+          "value": 0
+        },
+        "iteration_duration": {
+          "avg": 1435.4926264693156,
+          "min": 139.135869,
+          "med": 179.68214749999999,
+          "max": 22771.384081,
+          "p(90)": 7454.236816500002,
+          "p(95)": 9671.978566049998
+        },
+        "iterations": {
+          "rate": 37.35160957075423,
+          "count": 4302
+        },
+        "http_req_duration": {}
+      },
+      "prometheus_after_test": {
+        "http_p95_s": 0.04765058124999999,
+        "http_req_rate": 11.29090909090909,
+        "kafka_lag_max": 545.0,
+        "outbox_backlog_max": 89.0,
+        "fx_core_tx_p95_s": 0.032241431565217374
+      }
+    },
+    "replicas_5": {
+      "replicas": 5,
+      "settle_sleep_sec": 40,
+      "k6_exit_code": 0,
+      "k6_thresholds_passed": true,
+      "k6_summary_metrics": {
+        "raw_metrics_keys": [
+          "data_received",
+          "iterations",
+          "http_req_failed{scenario:spike}",
+          "http_req_failed{scenario:warm}",
+          "http_req_tls_handshaking",
+          "trade_accepted",
+          "http_req_duration{scenario:warm}",
+          "http_req_receiving",
+          "http_req_blocked",
+          "http_req_waiting",
+          "checks",
+          "trade_api_latency",
+          "iteration_duration",
+          "http_req_duration",
+          "vus_max",
+          "http_req_failed",
+          "http_req_duration{expected_response:true}",
+          "data_sent",
+          "vus",
+          "http_req_sending",
+          "http_req_failed{scenario:cool}",
+          "http_req_duration{scenario:cool}",
+          "http_req_connecting",
+          "http_reqs",
+          "http_req_duration{scenario:spike}"
+        ],
+        "http_reqs": {
+          "count": 4303,
+          "rate": 37.34794174534129
+        },
+        "http_req_failed": {
+          "passes": 0,
+          "fails": 4303,
+          "value": 0
+        },
+        "iteration_duration": {
+          "p(90)": 2454.468697000001,
+          "p(95)": 9666.906407,
+          "avg": 1452.8552354708347,
+          "min": 140.275901,
+          "med": 213.575026,
+          "max": 24167.784337
+        },
+        "iterations": {
+          "count": 4303,
+          "rate": 37.34794174534129
+        },
+        "http_req_duration": {}
+      },
+      "prometheus_after_test": {
+        "http_p95_s": 0.23562667553333322,
+        "http_req_rate": 6.254545454545454,
+        "kafka_lag_max": 742.0,
+        "outbox_backlog_max": 385.0,
+        "fx_core_tx_p95_s": 0.16106127219999972
+      }
+    }
+  }
+}

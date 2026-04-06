@@ -1,0 +1,716 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: fx-core-db
+spec:
+  selector:
+    app: fx-core-db
+  ports:
+    - name: postgres
+      port: 5432
+      targetPort: 5432
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: fx-trade-saga-db
+spec:
+  selector:
+    app: fx-trade-saga-db
+  ports:
+    - name: postgres
+      port: 5432
+      targetPort: 5432
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: fx-cover-db
+spec:
+  selector:
+    app: fx-cover-db
+  ports:
+    - name: postgres
+      port: 5432
+      targetPort: 5432
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: fx-risk-db
+spec:
+  selector:
+    app: fx-risk-db
+  ports:
+    - name: postgres
+      port: 5432
+      targetPort: 5432
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: fx-accounting-db
+spec:
+  selector:
+    app: fx-accounting-db
+  ports:
+    - name: postgres
+      port: 5432
+      targetPort: 5432
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: fx-settlement-db
+spec:
+  selector:
+    app: fx-settlement-db
+  ports:
+    - name: postgres
+      port: 5432
+      targetPort: 5432
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: fx-notification-db
+spec:
+  selector:
+    app: fx-notification-db
+  ports:
+    - name: postgres
+      port: 5432
+      targetPort: 5432
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: fx-compliance-db
+spec:
+  selector:
+    app: fx-compliance-db
+  ports:
+    - name: postgres
+      port: 5432
+      targetPort: 5432
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: fx-core-db
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: fx-core-db
+  template:
+    metadata:
+      labels:
+        app: fx-core-db
+    spec:
+      containers:
+        - name: postgres
+          image: image-registry.openshift-image-registry.svc:5000/fx-trading-sample/fx-postgres:latest
+          imagePullPolicy: Always
+          args:
+            - -c
+            - max_connections=160
+            - -c
+            - log_lock_waits=on
+            - -c
+            - deadlock_timeout=100ms
+          env:
+            - name: POSTGRES_DB
+              value: fx_trading
+            - name: POSTGRES_USER
+              value: fx
+            - name: POSTGRES_PASSWORD
+              value: fx
+            - name: PGDATA
+              value: /tmp/pgdata
+          ports:
+            - containerPort: 5432
+              name: postgres
+          volumeMounts:
+            - name: initdb
+              mountPath: /docker-entrypoint-initdb.d
+      volumes:
+        - name: initdb
+          configMap:
+            name: fx-postgres-init
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: fx-trade-saga-db
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: fx-trade-saga-db
+  template:
+    metadata:
+      labels:
+        app: fx-trade-saga-db
+    spec:
+      containers:
+        - name: postgres
+          image: image-registry.openshift-image-registry.svc:5000/fx-trading-sample/fx-postgres:latest
+          imagePullPolicy: Always
+          env:
+            - name: POSTGRES_DB
+              value: fx_trading
+            - name: POSTGRES_USER
+              value: fx
+            - name: POSTGRES_PASSWORD
+              value: fx
+            - name: PGDATA
+              value: /tmp/pgdata
+          ports:
+            - containerPort: 5432
+              name: postgres
+          volumeMounts:
+            - name: initdb
+              mountPath: /docker-entrypoint-initdb.d
+      volumes:
+        - name: initdb
+          configMap:
+            name: fx-postgres-init
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: fx-cover-db
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: fx-cover-db
+  template:
+    metadata:
+      labels:
+        app: fx-cover-db
+    spec:
+      containers:
+        - name: postgres
+          image: image-registry.openshift-image-registry.svc:5000/fx-trading-sample/fx-postgres:latest
+          imagePullPolicy: Always
+          env:
+            - name: POSTGRES_DB
+              value: fx_trading
+            - name: POSTGRES_USER
+              value: fx
+            - name: POSTGRES_PASSWORD
+              value: fx
+            - name: PGDATA
+              value: /tmp/pgdata
+          ports:
+            - containerPort: 5432
+              name: postgres
+          volumeMounts:
+            - name: initdb
+              mountPath: /docker-entrypoint-initdb.d
+      volumes:
+        - name: initdb
+          configMap:
+            name: fx-postgres-init
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: fx-risk-db
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: fx-risk-db
+  template:
+    metadata:
+      labels:
+        app: fx-risk-db
+    spec:
+      containers:
+        - name: postgres
+          image: image-registry.openshift-image-registry.svc:5000/fx-trading-sample/fx-postgres:latest
+          imagePullPolicy: Always
+          env:
+            - name: POSTGRES_DB
+              value: fx_trading
+            - name: POSTGRES_USER
+              value: fx
+            - name: POSTGRES_PASSWORD
+              value: fx
+            - name: PGDATA
+              value: /tmp/pgdata
+          ports:
+            - containerPort: 5432
+              name: postgres
+          volumeMounts:
+            - name: initdb
+              mountPath: /docker-entrypoint-initdb.d
+      volumes:
+        - name: initdb
+          configMap:
+            name: fx-postgres-init
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: fx-accounting-db
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: fx-accounting-db
+  template:
+    metadata:
+      labels:
+        app: fx-accounting-db
+    spec:
+      containers:
+        - name: postgres
+          image: image-registry.openshift-image-registry.svc:5000/fx-trading-sample/fx-postgres:latest
+          imagePullPolicy: Always
+          env:
+            - name: POSTGRES_DB
+              value: fx_trading
+            - name: POSTGRES_USER
+              value: fx
+            - name: POSTGRES_PASSWORD
+              value: fx
+            - name: PGDATA
+              value: /tmp/pgdata
+          ports:
+            - containerPort: 5432
+              name: postgres
+          volumeMounts:
+            - name: initdb
+              mountPath: /docker-entrypoint-initdb.d
+      volumes:
+        - name: initdb
+          configMap:
+            name: fx-postgres-init
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: fx-settlement-db
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: fx-settlement-db
+  template:
+    metadata:
+      labels:
+        app: fx-settlement-db
+    spec:
+      containers:
+        - name: postgres
+          image: image-registry.openshift-image-registry.svc:5000/fx-trading-sample/fx-postgres:latest
+          imagePullPolicy: Always
+          env:
+            - name: POSTGRES_DB
+              value: fx_trading
+            - name: POSTGRES_USER
+              value: fx
+            - name: POSTGRES_PASSWORD
+              value: fx
+            - name: PGDATA
+              value: /tmp/pgdata
+          ports:
+            - containerPort: 5432
+              name: postgres
+          volumeMounts:
+            - name: initdb
+              mountPath: /docker-entrypoint-initdb.d
+      volumes:
+        - name: initdb
+          configMap:
+            name: fx-postgres-init
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: fx-notification-db
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: fx-notification-db
+  template:
+    metadata:
+      labels:
+        app: fx-notification-db
+    spec:
+      containers:
+        - name: postgres
+          image: image-registry.openshift-image-registry.svc:5000/fx-trading-sample/fx-postgres:latest
+          imagePullPolicy: Always
+          env:
+            - name: POSTGRES_DB
+              value: fx_trading
+            - name: POSTGRES_USER
+              value: fx
+            - name: POSTGRES_PASSWORD
+              value: fx
+            - name: PGDATA
+              value: /tmp/pgdata
+          ports:
+            - containerPort: 5432
+              name: postgres
+          volumeMounts:
+            - name: initdb
+              mountPath: /docker-entrypoint-initdb.d
+      volumes:
+        - name: initdb
+          configMap:
+            name: fx-postgres-init
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: fx-compliance-db
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: fx-compliance-db
+  template:
+    metadata:
+      labels:
+        app: fx-compliance-db
+    spec:
+      containers:
+        - name: postgres
+          image: image-registry.openshift-image-registry.svc:5000/fx-trading-sample/fx-postgres:latest
+          imagePullPolicy: Always
+          env:
+            - name: POSTGRES_DB
+              value: fx_trading
+            - name: POSTGRES_USER
+              value: fx
+            - name: POSTGRES_PASSWORD
+              value: fx
+            - name: PGDATA
+              value: /tmp/pgdata
+          ports:
+            - containerPort: 5432
+              name: postgres
+          volumeMounts:
+            - name: initdb
+              mountPath: /docker-entrypoint-initdb.d
+      volumes:
+        - name: initdb
+          configMap:
+            name: fx-postgres-init
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: fx-core-service
+spec:
+  template:
+    spec:
+      containers:
+        - name: fx-core-service
+          env:
+            - name: DB_HOST
+              value: fx-core-db
+            - name: DB_PORT
+              value: "5432"
+            - name: DB_NAME
+              value: fx_trading
+            - name: DB_USER
+              value: fx
+            - name: DB_PASSWORD
+              value: fx
+            - name: DB_POOL_MAX_SIZE
+              value: "8"
+            - name: DB_POOL_MIN_IDLE
+              value: "2"
+            - name: DB_POOL_CONNECTION_TIMEOUT_MS
+              value: "5000"
+            - name: DB_POOL_IDLE_TIMEOUT_MS
+              value: "30000"
+            - name: DB_POOL_MAX_LIFETIME_MS
+              value: "300000"
+            - name: BALANCE_BUCKET_COUNT
+              value: "16"
+            - name: KAFKA_BOOTSTRAP_SERVERS
+              value: fx-kafka:9092
+            - name: SERVER_PORT
+              value: "8080"
+            - name: OUTBOX_POLL_PERIOD_MS
+              value: "50"
+            - name: OTEL_EXPORTER_OTLP_ENDPOINT
+              value: http://fx-tempo:4318/v1/traces
+            - name: LOKI_URL
+              value: http://fx-loki:3100/loki/api/v1/push
+            - name: ACTIVITY_DB_URL
+              value: jdbc:postgresql://fx-trade-saga-db:5432/fx_trading
+            - name: ACTIVITY_DB_USERNAME
+              value: fx
+            - name: ACTIVITY_DB_PASSWORD
+              value: fx
+            - name: SAGA_DB_URL
+              value: jdbc:postgresql://fx-trade-saga-db:5432/fx_trading
+            - name: SAGA_DB_USERNAME
+              value: fx
+            - name: SAGA_DB_PASSWORD
+              value: fx
+            - name: ACTIVITY_DB_POOL_MAX_SIZE
+              value: "20"
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: trade-saga-service
+spec:
+  template:
+    spec:
+      containers:
+        - name: trade-saga-service
+          env:
+            - name: DB_HOST
+              value: fx-trade-saga-db
+            - name: DB_PORT
+              value: "5432"
+            - name: DB_NAME
+              value: fx_trading
+            - name: DB_USER
+              value: fx
+            - name: DB_PASSWORD
+              value: fx
+            - name: KAFKA_BOOTSTRAP_SERVERS
+              value: fx-kafka:9092
+            - name: SERVER_PORT
+              value: "8081"
+            - name: OUTBOX_POLL_PERIOD_MS
+              value: "50"
+            - name: OTEL_EXPORTER_OTLP_ENDPOINT
+              value: http://fx-tempo:4318/v1/traces
+            - name: LOKI_URL
+              value: http://fx-loki:3100/loki/api/v1/push
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cover-service
+spec:
+  template:
+    spec:
+      containers:
+        - name: cover-service
+          env:
+            - name: DB_HOST
+              value: fx-cover-db
+            - name: DB_PORT
+              value: "5432"
+            - name: DB_NAME
+              value: fx_trading
+            - name: DB_USER
+              value: fx
+            - name: DB_PASSWORD
+              value: fx
+            - name: KAFKA_BOOTSTRAP_SERVERS
+              value: fx-kafka:9092
+            - name: SERVER_PORT
+              value: "8082"
+            - name: OUTBOX_POLL_PERIOD_MS
+              value: "50"
+            - name: OTEL_EXPORTER_OTLP_ENDPOINT
+              value: http://fx-tempo:4318/v1/traces
+            - name: LOKI_URL
+              value: http://fx-loki:3100/loki/api/v1/push
+            - name: ACTIVITY_DB_URL
+              value: jdbc:postgresql://fx-trade-saga-db:5432/fx_trading
+            - name: ACTIVITY_DB_USERNAME
+              value: fx
+            - name: ACTIVITY_DB_PASSWORD
+              value: fx
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: risk-service
+spec:
+  template:
+    spec:
+      containers:
+        - name: risk-service
+          env:
+            - name: DB_HOST
+              value: fx-risk-db
+            - name: DB_PORT
+              value: "5432"
+            - name: DB_NAME
+              value: fx_trading
+            - name: DB_USER
+              value: fx
+            - name: DB_PASSWORD
+              value: fx
+            - name: KAFKA_BOOTSTRAP_SERVERS
+              value: fx-kafka:9092
+            - name: SERVER_PORT
+              value: "8083"
+            - name: OUTBOX_POLL_PERIOD_MS
+              value: "50"
+            - name: OTEL_EXPORTER_OTLP_ENDPOINT
+              value: http://fx-tempo:4318/v1/traces
+            - name: LOKI_URL
+              value: http://fx-loki:3100/loki/api/v1/push
+            - name: ACTIVITY_DB_URL
+              value: jdbc:postgresql://fx-trade-saga-db:5432/fx_trading
+            - name: ACTIVITY_DB_USERNAME
+              value: fx
+            - name: ACTIVITY_DB_PASSWORD
+              value: fx
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: accounting-service
+spec:
+  template:
+    spec:
+      containers:
+        - name: accounting-service
+          env:
+            - name: DB_HOST
+              value: fx-accounting-db
+            - name: DB_PORT
+              value: "5432"
+            - name: DB_NAME
+              value: fx_trading
+            - name: DB_USER
+              value: fx
+            - name: DB_PASSWORD
+              value: fx
+            - name: KAFKA_BOOTSTRAP_SERVERS
+              value: fx-kafka:9092
+            - name: SERVER_PORT
+              value: "8084"
+            - name: OUTBOX_POLL_PERIOD_MS
+              value: "50"
+            - name: OTEL_EXPORTER_OTLP_ENDPOINT
+              value: http://fx-tempo:4318/v1/traces
+            - name: LOKI_URL
+              value: http://fx-loki:3100/loki/api/v1/push
+            - name: ACTIVITY_DB_URL
+              value: jdbc:postgresql://fx-trade-saga-db:5432/fx_trading
+            - name: ACTIVITY_DB_USERNAME
+              value: fx
+            - name: ACTIVITY_DB_PASSWORD
+              value: fx
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: settlement-service
+spec:
+  template:
+    spec:
+      containers:
+        - name: settlement-service
+          env:
+            - name: DB_HOST
+              value: fx-settlement-db
+            - name: DB_PORT
+              value: "5432"
+            - name: DB_NAME
+              value: fx_trading
+            - name: DB_USER
+              value: fx
+            - name: DB_PASSWORD
+              value: fx
+            - name: KAFKA_BOOTSTRAP_SERVERS
+              value: fx-kafka:9092
+            - name: SERVER_PORT
+              value: "8085"
+            - name: OUTBOX_POLL_PERIOD_MS
+              value: "50"
+            - name: OTEL_EXPORTER_OTLP_ENDPOINT
+              value: http://fx-tempo:4318/v1/traces
+            - name: LOKI_URL
+              value: http://fx-loki:3100/loki/api/v1/push
+            - name: ACTIVITY_DB_URL
+              value: jdbc:postgresql://fx-trade-saga-db:5432/fx_trading
+            - name: ACTIVITY_DB_USERNAME
+              value: fx
+            - name: ACTIVITY_DB_PASSWORD
+              value: fx
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: notification-service
+spec:
+  template:
+    spec:
+      containers:
+        - name: notification-service
+          env:
+            - name: DB_HOST
+              value: fx-notification-db
+            - name: DB_PORT
+              value: "5432"
+            - name: DB_NAME
+              value: fx_trading
+            - name: DB_USER
+              value: fx
+            - name: DB_PASSWORD
+              value: fx
+            - name: KAFKA_BOOTSTRAP_SERVERS
+              value: fx-kafka:9092
+            - name: SERVER_PORT
+              value: "8086"
+            - name: OUTBOX_POLL_PERIOD_MS
+              value: "50"
+            - name: OTEL_EXPORTER_OTLP_ENDPOINT
+              value: http://fx-tempo:4318/v1/traces
+            - name: LOKI_URL
+              value: http://fx-loki:3100/loki/api/v1/push
+            - name: ACTIVITY_DB_URL
+              value: jdbc:postgresql://fx-trade-saga-db:5432/fx_trading
+            - name: ACTIVITY_DB_USERNAME
+              value: fx
+            - name: ACTIVITY_DB_PASSWORD
+              value: fx
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: compliance-service
+spec:
+  template:
+    spec:
+      containers:
+        - name: compliance-service
+          env:
+            - name: DB_HOST
+              value: fx-compliance-db
+            - name: DB_PORT
+              value: "5432"
+            - name: DB_NAME
+              value: fx_trading
+            - name: DB_USER
+              value: fx
+            - name: DB_PASSWORD
+              value: fx
+            - name: KAFKA_BOOTSTRAP_SERVERS
+              value: fx-kafka:9092
+            - name: SERVER_PORT
+              value: "8087"
+            - name: OUTBOX_POLL_PERIOD_MS
+              value: "50"
+            - name: OTEL_EXPORTER_OTLP_ENDPOINT
+              value: http://fx-tempo:4318/v1/traces
+            - name: LOKI_URL
+              value: http://fx-loki:3100/loki/api/v1/push
+            - name: ACTIVITY_DB_URL
+              value: jdbc:postgresql://fx-trade-saga-db:5432/fx_trading
+            - name: ACTIVITY_DB_USERNAME
+              value: fx
+            - name: ACTIVITY_DB_PASSWORD
+              value: fx

@@ -1,0 +1,31 @@
+---
+description: FXトレーディング基盤の共通アーキテクチャ基準
+alwaysApply: true
+---
+
+# FX Architecture Standards
+
+- 約定コアは単一サービス内 ACID、後続処理は Saga + Kafka で分離する。
+- 配線、分岐、再送、例外処理、冪等、メッセージ変換は、独自実装より先に Camel 4 の EIP / component で実現できないかを必ず検討する。
+- Camel `RouteBuilder` は配線専用とし、業務判定・状態遷移・補償判定は Service 層へ置く。
+- イベント送信は Outbox 前提で実装し、Consumer 側で `eventId` 単位の冪等制御を必須とする。
+- 補償は DB ロールバックではなく、逆取引・取消・訂正通知のような業務的打消しで表現する。
+- 後続業務の依存関係を崩す同期呼び出しを追加しない。整合性はイベント順序で担保する。
+- 金額計算は精度を失わない型を使い、状態値やイベント名は定数/列挙で一元管理する。
+- 新しい Saga ステップを追加する場合は、成功/失敗/補償イベント、状態遷移、テストを同時に更新する。
+- 障害解析のため、ログには `tradeId`、`orderId`、`correlationId`、`eventId` を必ず含める。
+- `choice`、`split`、`aggregate`、`idempotentConsumer`、`onException`、`deadLetterChannel`、`toD`、`kafka`、`sql` などの標準機能で足りる場合は、それを優先する。
+- ただし Camel に業務状態管理を持ち込まない。取引可否判定、補償対象判定、`trade_saga` 更新は Service / DB で管理する。
+
+## Good Example
+
+```text
+Route -> Camel EIP / component で受信・分岐・再送・冪等制御 -> Service呼び出し
+Service -> Tx制御/DB更新/Outbox登録/補償判定
+```
+
+## Bad Example
+
+```text
+RouteBuilder の中で独自 if/for/retry を大量に書き、Camel 標準 EIP で置き換えられる処理まで手書きする
+```

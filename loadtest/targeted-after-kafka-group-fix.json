@@ -1,0 +1,54 @@
+{
+  "replica_3": {
+    "baseline": {
+      "passed": false,
+      "average_s": 1.0390852578863283,
+      "p95_s": 1.2895859441999986,
+      "requests_per_sec": 14.465458976356375,
+      "trade_accepted": 1302,
+      "trace_sampled": 63,
+      "trace_timed_out": 57,
+      "saga_completed": 0,
+      "saga_failed": 57,
+      "trade_e2e_p95_s": null
+    },
+    "notification_fail": {
+      "passed": false,
+      "average_s": 9.037521439748936,
+      "p95_s": 28.0907290793,
+      "requests_per_sec": 2.6110185974131332,
+      "trade_accepted": 235,
+      "trace_sampled": 53,
+      "trace_timed_out": 34,
+      "saga_completed": 0,
+      "saga_failed": 34,
+      "trade_e2e_p95_s": null
+    }
+  },
+  "replica_5": {
+    "baseline": {
+      "passed": false,
+      "average_s": 3.089619741050192,
+      "p95_s": 24.152904867899995,
+      "requests_per_sec": 14.383257005067708,
+      "trade_accepted": 1295,
+      "trace_sampled": 70,
+      "trace_timed_out": 43,
+      "saga_completed": 0,
+      "saga_failed": 43,
+      "trade_e2e_p95_s": null
+    },
+    "notification_fail": {
+      "passed": false,
+      "average_s": 9.415879064646772,
+      "p95_s": 24.958726171,
+      "requests_per_sec": 2.232480149247309,
+      "trade_accepted": 201,
+      "trace_sampled": 41,
+      "trace_timed_out": 16,
+      "saga_completed": 0,
+      "saga_failed": 16,
+      "trade_e2e_p95_s": null
+    }
+  }
+}

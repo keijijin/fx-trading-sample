@@ -1,0 +1,47 @@
+---
+description: Java実装時のFXマイクロサービス基準
+globs: **/*.java
+alwaysApply: false
+---
+
+# Java Microservice Standards
+
+- Java は JDK 21 を前提とし、Spring Boot + Apache Camel 4.14 系に合わせて実装する。
+- ルーティング、条件分岐、再送、例外ハンドリング、冪等、メッセージ変換は、まず Camel 4 の EIP / component で表現し、手書きロジックは最後の手段にする。
+- `RouteBuilder` では入出力、イベント分岐、EIP による制御、Bean 呼び出しまでに留め、業務ロジックを書かない。
+- Service メソッドでトランザクション境界を明確にし、DB 更新順序は設計書の ACID 手順に従う。
+- 金額計算に `double` / `float` を使わず `BigDecimal` を使う。
+- 冪等、楽観ロック、一意制約違反は明示的に扱い、握りつぶさない。
+- 例外は致命/非致命を分けて記録し、補償が必要な失敗かを判断できる名前にする。
+- Kafka メッセージ処理では `eventId`、`eventType`、`correlationId` を受け渡し、欠落させない。
+- ログは構造化し、少なくとも `tradeId`、`orderId`、`eventId` を含める。
+- `choice`、`split`、`aggregate`、`filter`、`idempotentConsumer`、`onException`、`transacted`、`deadLetterChannel`、`wireTap` などで表せる処理は Camel 側で組み立てる。
+- `ProducerTemplate` や素の Java ループで経路制御を書く前に、`direct`、`seda`、`kafka`、`sql` などのコンポーネントと EIP で置き換え可能か確認する。
+- ただし Camel へ寄せるのは配線と制御までとし、取引判定、残高計算、補償対象判定、`trade_saga` 状態更新は Service に残す。
+
+## Good Example
+
+```java
+from("kafka:fx-trade-events")
+    .choice()
+        .when(header("eventType").isEqualTo("TradeExecuted"))
+            .bean("coverSagaService", "bookCoverTrade");
+```
+
+```java
+@Transactional
+public void bookCoverTrade(CoverCommand command) {
+    duplicateMessageService.check(command.eventId());
+    coverRepository.save(...);
+    outboxService.enqueue(...);
+}
+```
+
+## Bad Example
+
+```java
+from("kafka:fx-trade-events")
+    .process(e -> {
+        // 分岐、再送、冪等、業務判定を全部手書きする
+    });
+```

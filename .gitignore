@@ -1,0 +1,42 @@
+# Java / Maven
+backend/**/target/
+*.class
+*.jar
+*.war
+*.ear
+*.log
+hs_err_pid*
+
+# Node.js / Next.js
+frontend/node_modules/
+frontend/.next/
+frontend/out/
+
+# IDE
+.idea/
+*.iml
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+
+# Load test temp
+loadtest/.tmp/
+
+# Secrets / credentials
+.env
+.env.local
+*.pem
+*.key
+credentials.json

@@ -1,0 +1,60 @@
+{
+  "replica_1": {
+    "replicas": 1,
+    "hey": {
+      "average_s": 0.1751,
+      "fastest_s": 0.1377,
+      "slowest_s": 0.7486,
+      "requests_per_sec": 170.8453,
+      "status_counts": {
+        "201": 1000,
+        "409": 9288,
+        "500": 1
+      },
+      "raw": "\nSummary:\n  Total:\t60.2241 secs\n  Slowest:\t0.7486 secs\n  Fastest:\t0.1377 secs\n  Average:\t0.1751 secs\n  Requests/sec:\t170.8453\n  \n\nResponse time histogram:\n  0.138 [1]\t|\n  0.199 [7243]\t|\u25a0\u25a0\u25a0\u25a0\u25a0\u25a0\u25a0\u25a0\u25a0\u25a0\u25a0\u25a0\u25a0\u25a0\u25a0\u25a0\u25a0\u25a0\u25a0\u25a0\u25a0\u25a0\u25a0\u25a0\u25a0\u25a0\u25a0\u25a0\u25a0\u25a0\u25a0\u25a0\u25a0\u25a0\u25a0\u25a0\u25a0\u25a0\u25a0\u25a0\n  0.260 [3005]\t|\u25a0\u25a0\u25a0\u25a0\u25a0\u25a0\u25a0\u25a0\u25a0\u25a0\u25a0\u25a0\u25a0\u25a0\u25a0\u25a0\u25a0\n  0.321 [9]\t|\n  0.382 [0]\t|\n  0.443 [0]\t|\n  0.504 [3]\t|\n  0.565 [9]\t|\n  0.626 [9]\t|\n  0.688 [7]\t|\n  0.749 [3]\t|\n\n\nLatency distribution:\n  10% in 0.1482 secs\n  25% in 0.1530 secs\n  50% in 0.1585 secs\n  75% in 0.2054 secs\n  90% in 0.2182 secs\n  95% in 0.2254 secs\n  99% in 0.2338 secs\n\nDetails (average, fastest, slowest):\n  DNS+dialup:\t0.0008 secs, 0.1377 secs, 0.7486 secs\n  DNS-lookup:\t0.0003 secs, 0.0000 secs, 0.1167 secs\n  req write:\t0.0000 secs, 0.0000 secs, 0.0011 secs\n  resp wait:\t0.1743 secs, 0.1376 secs, 0.5418 secs\n  resp read:\t0.0000 secs, 0.0000 secs, 0.0019 secs\n\nStatus code distribution:\n  [201]\t1000 responses\n  [409]\t9288 responses\n  [500]\t1 responses\n\n\n\n"
+    },
+    "prometheus": {
+      "http_p95_s": null,
+      "http_p99_s": null,
+      "http_error_rate": 119.00141037037038,
+      "saga_p95_s": NaN,
+      "saga_p99_s": NaN,
+      "outbox_backlog_max": null,
+      "hikari_active_max": 6.0,
+      "hikari_pending_max": 0.0,
+      "hikari_max": 10.0,
+      "kafka_lag_max": 8.0,
+      "pod_cpu_sum_cores": 2.184829344033571,
+      "pod_memory_sum_bytes": 5574266880.0,
+      "pod_restarts": 0.0
+    }
+  },
+  "replica_3": {
+    "replicas": 3,
+    "hey": {
+      "average_s": 0.1753,
+      "fastest_s": 0.1395,
+      "slowest_s": 0.5662,
+      "requests_per_sec": 171.0651,
+      "status_counts": {
+        "409": 10281
+      },
+      "raw": "\nSummary:\n  Total:\t60.0999 secs\n  Slowest:\t0.5662 secs\n  Fastest:\t0.1395 secs\n  Average:\t0.1753 secs\n  Requests/sec:\t171.0651\n  \n\nResponse time histogram:\n  0.139 [1]\t|\n  0.182 [6978]\t|\u25a0\u25a0\u25a0\u25a0\u25a0\u25a0\u25a0\u25a0\u25a0\u25a0\u25a0\u25a0\u25a0\u25a0\u25a0\u25a0\u25a0\u25a0\u25a0\u25a0\u25a0\u25a0\u25a0\u25a0\u25a0\u25a0\u25a0\u25a0\u25a0\u25a0\u25a0\u25a0\u25a0\u25a0\u25a0\u25a0\u25a0\u25a0\u25a0\u25a0\n  0.225 [2881]\t|\u25a0\u25a0\u25a0\u25a0\u25a0\u25a0\u25a0\u25a0\u25a0\u25a0\u25a0\u25a0\u25a0\u25a0\u25a0\u25a0\u25a0\n  0.268 [341]\t|\u25a0\u25a0\n  0.310 [11]\t|\n  0.353 [21]\t|\n  0.396 [34]\t|\n  0.438 [1]\t|\n  0.481 [0]\t|\n  0.524 [4]\t|\n  0.566 [9]\t|\n\n\nLatency distribution:\n  10% in 0.1496 secs\n  25% in 0.1543 secs\n  50% in 0.1610 secs\n  75% in 0.2010 secs\n  90% in 0.2159 secs\n  95% in 0.2230 secs\n  99% in 0.2351 secs\n\nDetails (average, fastest, slowest):\n  DNS+dialup:\t0.0005 secs, 0.1395 secs, 0.5662 secs\n  DNS-lookup:\t0.0000 secs, 0.0000 secs, 0.0038 secs\n  req write:\t0.0000 secs, 0.0000 secs, 0.0018 secs\n  resp wait:\t0.1748 secs, 0.1394 secs, 0.5658 secs\n  resp read:\t0.0000 secs, 0.0000 secs, 0.0031 secs\n\nStatus code distribution:\n  [409]\t10281 responses\n\n\n\n"
+    },
+    "prometheus": {
+      "http_p95_s": null,
+      "http_p99_s": null,
+      "http_error_rate": 66.33333333333333,
+      "saga_p95_s": NaN,
+      "saga_p99_s": NaN,
+      "outbox_backlog_max": null,
+      "hikari_active_max": 2.0,
+      "hikari_pending_max": 0.0,
+      "hikari_max": 10.0,
+      "kafka_lag_max": 0.0,
+      "pod_cpu_sum_cores": 2.854128927837626,
+      "pod_memory_sum_bytes": 14490234880.0,
+      "pod_restarts": 0.0
+    }
+  }
+}

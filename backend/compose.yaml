@@ -1,0 +1,222 @@
+services:
+  postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_DB: fx_trading
+      POSTGRES_USER: fx
+      POSTGRES_PASSWORD: fx
+    ports:
+      - "5432:5432"
+    volumes:
+      - ./db/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U fx -d fx_trading"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  kafka:
+    image: apache/kafka:3.9.1
+    ports:
+      - "9092:9092"
+    environment:
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_LISTENERS: PLAINTEXT://:9092,CONTROLLER://:9093
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/kafka/bin/kafka-topics.sh --bootstrap-server localhost:9092 --list >/dev/null 2>&1"]
+      interval: 10s
+      timeout: 10s
+      retries: 20
+
+  fx-core-service:
+    build:
+      context: ./fx-core-service
+      dockerfile: Dockerfile
+    depends_on:
+      postgres:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+    environment:
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: fx_trading
+      DB_USER: fx
+      DB_PASSWORD: fx
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      SERVER_PORT: 8080
+      OUTBOX_POLL_PERIOD_MS: 100
+    ports:
+      - "8080:8080"
+
+  trade-saga-service:
+    build:
+      context: ./trade-saga-service
+      dockerfile: Dockerfile
+    depends_on:
+      postgres:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+    environment:
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: fx_trading
+      DB_USER: fx
+      DB_PASSWORD: fx
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      SERVER_PORT: 8081
+      OUTBOX_POLL_PERIOD_MS: 100
+    ports:
+      - "8081:8081"
+
+  cover-service:
+    build:
+      context: ./cover-service
+      dockerfile: Dockerfile
+    depends_on:
+      postgres:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+    environment:
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: fx_trading
+      DB_USER: fx
+      DB_PASSWORD: fx
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      SERVER_PORT: 8082
+      OUTBOX_POLL_PERIOD_MS: 100
+    ports:
+      - "8082:8082"
+
+  risk-service:
+    build:
+      context: ./risk-service
+      dockerfile: Dockerfile
+    depends_on:
+      postgres:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+    environment:
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: fx_trading
+      DB_USER: fx
+      DB_PASSWORD: fx
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      SERVER_PORT: 8083
+      OUTBOX_POLL_PERIOD_MS: 100
+    ports:
+      - "8083:8083"
+
+  accounting-service:
+    build:
+      context: ./accounting-service
+      dockerfile: Dockerfile
+    depends_on:
+      postgres:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+    environment:
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: fx_trading
+      DB_USER: fx
+      DB_PASSWORD: fx
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      SERVER_PORT: 8084
+      OUTBOX_POLL_PERIOD_MS: 100
+    ports:
+      - "8084:8084"
+
+  settlement-service:
+    build:
+      context: ./settlement-service
+      dockerfile: Dockerfile
+    depends_on:
+      postgres:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+    environment:
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: fx_trading
+      DB_USER: fx
+      DB_PASSWORD: fx
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      SERVER_PORT: 8085
+      OUTBOX_POLL_PERIOD_MS: 100
+    ports:
+      - "8085:8085"
+
+  notification-service:
+    build:
+      context: ./notification-service
+      dockerfile: Dockerfile
+    depends_on:
+      postgres:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+    environment:
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: fx_trading
+      DB_USER: fx
+      DB_PASSWORD: fx
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      SERVER_PORT: 8086
+      OUTBOX_POLL_PERIOD_MS: 100
+    ports:
+      - "8086:8086"
+
+  compliance-service:
+    build:
+      context: ./compliance-service
+      dockerfile: Dockerfile
+    depends_on:
+      postgres:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+    environment:
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: fx_trading
+      DB_USER: fx
+      DB_PASSWORD: fx
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      SERVER_PORT: 8087
+      OUTBOX_POLL_PERIOD_MS: 100
+    ports:
+      - "8087:8087"
+
+  frontend:
+    build:
+      context: ../frontend
+      dockerfile: Dockerfile
+    depends_on:
+      fx-core-service:
+        condition: service_started
+    environment:
+      FX_CORE_BASE_URL: http://fx-core-service:8080
+      PORT: 3000
+      HOSTNAME: 0.0.0.0
+      NEXT_TELEMETRY_DISABLED: 1
+    ports:
+      - "3400:3000"
