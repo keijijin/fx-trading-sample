@@ -102,11 +102,16 @@
 ## 7. 改善余地への対応（実施内容）
 
 1. **Saga 以外のボトルネック**  
-   `loadtest/run_spike_scale_test.py` が、k6 の warm / spike / cool と**同じ秒幅**の Unix 窓で Prometheus **`/api/v1/query_range`** を実行し、`sum(fx_outbox_backlog_total)`・`max(fx_kafka_consumer_group_lag)`・`sum(hikaricp_connections_active)` を相別に集計（JSON の `prometheus_by_phase`、Markdown の「相別 Prometheus」表）。試験直後の instant スナップショット（`prometheus_after_test`）も従来どおり。`--disable-phase-prometheus` で range 部分のみ無効化可能。
+   `loadtest/run_spike_scale_test.py` が、k6 の warm / spike / cool と**同じ秒幅**の Unix 窓で Prometheus **`/api/v1/query_range`** を実行し、`sum(fx_outbox_backlog)`・`max(fx_kafka_consumer_group_lag)`・`sum(hikaricp_connections_active)` を相別に集計（JSON の `prometheus_by_phase`、Markdown の「相別 Prometheus」表）。試験直後の instant スナップショット（`prometheus_after_test`）も従来どおり。`--disable-phase-prometheus` で range 部分のみ無効化可能。  
+   なお、Outbox backlog の scrape 名は Micrometer 上 **`fx_outbox_backlog`** であり、当初の `fx_outbox_backlog_total` ではなかったため、負荷試験スクリプト側を修正した。
 2. **本番に近い非機能**  
    `loadtest/verify_db_connection_budget.py` で、manifest / 既定に基づく **サービス×DB ホスト×プール**をレプリカ数で積み上げ、`max_connections`（`--pg-max-connections` または `oc exec` による `SHOW max_connections`）と比較する JSON を標準出力する。
 3. **ドメイン分割**  
    約定スループット超過時はシャード・口座分散が必要になる旨と、検討フェーズの目安を `design/sharding-and-domain-split-roadmap.md` に整理した。
+4. **試験シナリオの純度**  
+   `run_test_plan_suite.py` の baseline は、以前は `BASELINE_FAILURE_PERCENT=5` でカバー/会計/通知失敗を 5% 混在させていたため、正常系なのに `saga_compensated` が計上されることがあった。現在は **`BASELINE_FAILURE_PERCENT=0`** とし、純粋な正常系シナリオに修正した。
+5. **シナリオ間汚染（Kafka lag 持ち越し）**  
+   stress の直後に soak を実行すると、前シナリオの Kafka lag がそのまま soak の Prometheus 窓に混入していた。`run_test_plan_suite.py` に **lag settle 待ち**（既定: `max(fx_kafka_consumer_group_lag) <= 100` まで最大 180 秒）を追加し、前シナリオの残りを次シナリオへ持ち込まないようにした。
 
 ---
 

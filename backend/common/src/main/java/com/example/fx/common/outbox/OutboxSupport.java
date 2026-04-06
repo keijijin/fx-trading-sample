@@ -2,7 +2,9 @@ package com.example.fx.common.outbox;
 
 import com.example.fx.common.activity.TradeActivitySupport;
 import io.micrometer.core.instrument.Counter;
+import io.micrometer.core.instrument.Gauge;
 import io.micrometer.core.instrument.MeterRegistry;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Component;
@@ -22,11 +24,33 @@ public class OutboxSupport {
     public OutboxSupport(
             JdbcTemplate jdbcTemplate,
             TradeActivitySupport tradeActivitySupport,
-            MeterRegistry meterRegistry
+            MeterRegistry meterRegistry,
+            @Value("${spring.application.name}") String applicationName
     ) {
         this.jdbcTemplate = jdbcTemplate;
         this.tradeActivitySupport = tradeActivitySupport;
         this.meterRegistry = meterRegistry;
+
+        // Register gauges from a bean that is certainly instantiated in every service.
+        Gauge.builder(
+                        "fx_outbox_backlog_total",
+                        jdbcTemplate,
+                        jdbc -> count(jdbc,
+                                "select count(*) from outbox_event where source_service = ? and status in ('NEW','RETRY','IN_PROGRESS')",
+                                applicationName)
+                )
+                .tag("source_service", applicationName)
+                .register(meterRegistry);
+
+        Gauge.builder(
+                        "fx_outbox_error_total",
+                        jdbcTemplate,
+                        jdbc -> count(jdbc,
+                                "select count(*) from outbox_event where source_service = ? and status = 'ERROR'",
+                                applicationName)
+                )
+                .tag("source_service", applicationName)
+                .register(meterRegistry);
     }
 
     public boolean isDuplicate(String eventId, String consumerName) {
@@ -138,15 +162,16 @@ public class OutboxSupport {
         );
     }
 
+    private double count(JdbcTemplate jdbcTemplate, String sql, String sourceService) {
+        Integer count = jdbcTemplate.queryForObject(sql, Integer.class, sourceService);
+        return count == null ? 0.0d : count.doubleValue();
+    }
+
     private String truncate(String value) {
         if (value == null) {
             return null;
         }
         return value.length() > 1024 ? value.substring(0, 1024) : value;
-    }
-
-    private String stringValue(Object value) {
-        return value == null ? null : value.toString();
     }
 
     private Counter counter(String name, String sourceService, String eventType) {

@@ -1,0 +1,277 @@
+{
+  "namespace": "fx-trading-sample",
+  "replicas": 1,
+  "script": "k6-test-plan-suite.js",
+  "generated_at_epoch": 1775453217.674751,
+  "scenarios": {
+    "smoke": {
+      "description": "\u30b9\u30e2\u30fc\u30af",
+      "mode": "smoke",
+      "duration": "90s",
+      "window": "120s",
+      "passed": true,
+      "k6": {
+        "average_s": 0.16970821319333326,
+        "p95_s": 0.22910338274999997,
+        "p99_s": null,
+        "slowest_s": 0.314396321,
+        "requests_per_sec": 4.95498715282355,
+        "http_req_failed_rate": null,
+        "trade_accepted": 450,
+        "trace_sampled": 450,
+        "trace_timed_out": null,
+        "saga_completed": 450,
+        "saga_compensated": null,
+        "saga_failed": null,
+        "business_failure_rate": null,
+        "trade_e2e_p95_s": 1.11875,
+        "trade_e2e_p99_s": null
+      },
+      "prometheus": {
+        "http_p95_s": 0.010672291668989115,
+        "http_p99_s": 0.015553875000000007,
+        "saga_p95_s": 0.21788152583473527,
+        "outbox_backlog_max": 0.0,
+        "hikari_active_max": 0.0,
+        "hikari_pending_max": 0.0,
+        "kafka_lag_max": 8.0,
+        "fx_core_tx_p95_s": 0.006033255558746253,
+        "fx_core_lock_wait_p95_s": 0.0013410263564540266
+      },
+      "post_scenario_settle": {
+        "settled": true,
+        "last_lag": 8.0
+      }
+    },
+    "baseline": {
+      "description": "\u30d9\u30fc\u30b9\u30e9\u30a4\u30f3",
+      "mode": "baseline",
+      "duration": "120s",
+      "window": "150s",
+      "passed": true,
+      "k6": {
+        "average_s": 0.16524770550924894,
+        "p95_s": 0.22645157900000001,
+        "p99_s": null,
+        "slowest_s": 0.6047791379999999,
+        "requests_per_sec": 49.943143747683514,
+        "http_req_failed_rate": null,
+        "trade_accepted": 6001,
+        "trace_sampled": 289,
+        "trace_timed_out": null,
+        "saga_completed": 289,
+        "saga_compensated": null,
+        "saga_failed": null,
+        "business_failure_rate": null,
+        "trade_e2e_p95_s": 1.0415999999999999,
+        "trade_e2e_p99_s": null
+      },
+      "prometheus": {
+        "http_p95_s": 0.005845031430060943,
+        "http_p99_s": 0.008304321482571392,
+        "saga_p95_s": 0.17877883751399914,
+        "outbox_backlog_max": 0.0,
+        "hikari_active_max": 1.0,
+        "hikari_pending_max": 0.0,
+        "kafka_lag_max": 145.0,
+        "fx_core_tx_p95_s": 0.004414330039343065,
+        "fx_core_lock_wait_p95_s": 0.0010317791680956878
+      },
+      "post_scenario_settle": {
+        "settled": true,
+        "last_lag": 44.0
+      }
+    },
+    "cover_fail": {
+      "description": "Cover\u5931\u6557\u88dc\u511f",
+      "mode": "cover_fail",
+      "duration": "90s",
+      "window": "120s",
+      "passed": true,
+      "k6": {
+        "average_s": 0.14784978014877867,
+        "p95_s": 0.15480209550000001,
+        "p99_s": null,
+        "slowest_s": 0.208993134,
+        "requests_per_sec": 14.866388292034685,
+        "http_req_failed_rate": null,
+        "trade_accepted": 1351,
+        "trace_sampled": 257,
+        "trace_timed_out": null,
+        "saga_completed": null,
+        "saga_compensated": 257,
+        "saga_failed": null,
+        "business_failure_rate": null,
+        "trade_e2e_p95_s": 0.9582,
+        "trade_e2e_p99_s": null
+      },
+      "prometheus": {
+        "http_p95_s": 0.005144704275367645,
+        "http_p99_s": 0.009285388927142828,
+        "saga_p95_s": 0.17486171550031346,
+        "outbox_backlog_max": 0.0,
+        "hikari_active_max": 0.0,
+        "hikari_pending_max": 0.0,
+        "kafka_lag_max": 56.0,
+        "fx_core_tx_p95_s": 0.0033735566249999994,
+        "fx_core_lock_wait_p95_s": 0.0009657261098570352
+      },
+      "post_scenario_settle": {
+        "settled": true,
+        "last_lag": 21.0
+      }
+    },
+    "accounting_fail": {
+      "description": "\u4f1a\u8a08\u5931\u6557\u88dc\u511f",
+      "mode": "accounting_fail",
+      "duration": "90s",
+      "window": "120s",
+      "passed": true,
+      "k6": {
+        "average_s": 0.14839588496592582,
+        "p95_s": 0.15482913265,
+        "p99_s": null,
+        "slowest_s": 0.21245583099999998,
+        "requests_per_sec": 14.92338894792226,
+        "http_req_failed_rate": null,
+        "trade_accepted": 1350,
+        "trace_sampled": 272,
+        "trace_timed_out": null,
+        "saga_completed": null,
+        "saga_compensated": 272,
+        "saga_failed": null,
+        "business_failure_rate": null,
+        "trade_e2e_p95_s": 0.9603499999999999,
+        "trade_e2e_p99_s": null
+      },
+      "prometheus": {
+        "http_p95_s": 0.005171237928571427,
+        "http_p99_s": 0.006446800055555556,
+        "saga_p95_s": 0.22315034943492823,
+        "outbox_backlog_max": 0.0,
+        "hikari_active_max": 1.0,
+        "hikari_pending_max": 0.0,
+        "kafka_lag_max": 75.0,
+        "fx_core_tx_p95_s": 0.0034642184065420555,
+        "fx_core_lock_wait_p95_s": 0.0009888203546646105
+      },
+      "post_scenario_settle": {
+        "settled": true,
+        "last_lag": 75.0
+      }
+    },
+    "notification_fail": {
+      "description": "\u901a\u77e5\u5931\u6557\u975e\u81f4\u547d",
+      "mode": "notification_fail",
+      "duration": "90s",
+      "window": "120s",
+      "passed": true,
+      "k6": {
+        "average_s": 0.14829660802592562,
+        "p95_s": 0.1550882764,
+        "p99_s": null,
+        "slowest_s": 0.257130491,
+        "requests_per_sec": 14.874411910694434,
+        "http_req_failed_rate": null,
+        "trade_accepted": 1350,
+        "trace_sampled": 264,
+        "trace_timed_out": null,
+        "saga_completed": 264,
+        "saga_compensated": null,
+        "saga_failed": null,
+        "business_failure_rate": null,
+        "trade_e2e_p95_s": 0.9715499999999999,
+        "trade_e2e_p99_s": null
+      },
+      "prometheus": {
+        "http_p95_s": 0.005306800710116731,
+        "http_p99_s": 0.0060118353,
+        "saga_p95_s": 0.1780354691175359,
+        "outbox_backlog_max": 0.0,
+        "hikari_active_max": 0.0,
+        "hikari_pending_max": 0.0,
+        "kafka_lag_max": 81.0,
+        "fx_core_tx_p95_s": 0.0035717095937499986,
+        "fx_core_lock_wait_p95_s": 0.0009972783825816483
+      },
+      "post_scenario_settle": {
+        "settled": true,
+        "last_lag": 58.0
+      }
+    },
+    "stress": {
+      "description": "\u30b9\u30c8\u30ec\u30b9",
+      "mode": "stress",
+      "duration": "180s",
+      "window": "210s",
+      "passed": true,
+      "k6": {
+        "average_s": 0.14749900505496877,
+        "p95_s": 0.15347881319999998,
+        "p99_s": null,
+        "slowest_s": 0.31861899,
+        "requests_per_sec": 78.26540701312832,
+        "http_req_failed_rate": null,
+        "trade_accepted": 14099,
+        "trace_sampled": 263,
+        "trace_timed_out": null,
+        "saga_completed": 263,
+        "saga_compensated": null,
+        "saga_failed": null,
+        "business_failure_rate": null,
+        "trade_e2e_p95_s": 0.957,
+        "trade_e2e_p99_s": null
+      },
+      "prometheus": {
+        "http_p95_s": 0.004294901736015623,
+        "http_p99_s": 0.005526890860953124,
+        "saga_p95_s": 0.17855429865421718,
+        "outbox_backlog_max": 0.0,
+        "hikari_active_max": 2.0,
+        "hikari_pending_max": 0.0,
+        "kafka_lag_max": 957.0,
+        "fx_core_tx_p95_s": 0.0032418120233778623,
+        "fx_core_lock_wait_p95_s": 0.0009686180214058431
+      },
+      "post_scenario_settle": {
+        "settled": true,
+        "last_lag": 0.0
+      }
+    },
+    "soak": {
+      "description": "\u8010\u4e45(\u77ed\u7e2e\u7248)",
+      "mode": "soak",
+      "duration": "180s",
+      "window": "210s",
+      "passed": true,
+      "k6": {
+        "average_s": 0.1487551287456261,
+        "p95_s": 0.15476009899999998,
+        "p99_s": null,
+        "slowest_s": 0.259597826,
+        "requests_per_sec": 19.989582148099302,
+        "http_req_failed_rate": null,
+        "trade_accepted": 3601,
+        "trace_sampled": 70,
+        "trace_timed_out": null,
+        "saga_completed": 70,
+        "saga_compensated": null,
+        "saga_failed": null,
+        "business_failure_rate": null,
+        "trade_e2e_p95_s": 0.9571000000000001,
+        "trade_e2e_p99_s": null
+      },
+      "prometheus": {
+        "http_p95_s": 0.0044593933750000005,
+        "http_p99_s": 0.005566877875000001,
+        "saga_p95_s": 0.1781138307353966,
+        "outbox_backlog_max": 0.0,
+        "hikari_active_max": 1.0,
+        "hikari_pending_max": 0.0,
+        "kafka_lag_max": 749.0,
+        "fx_core_tx_p95_s": 0.0031269461602564095,
+        "fx_core_lock_wait_p95_s": 0.0009614811691961775
+      }
+    }
+  }
+}

@@ -18,10 +18,16 @@
 - `k6-spike-scale-test.js` / `run_spike_scale_test.py`
   - **warm → spike → cool** の 3 相でスパイク負荷を再現（`constant-arrival-rate` を `startTime` で直列配置）
   - `--compare-replicas 1 3` でレプリカ数を変えて **同条件を繰り返し**、スパイク時のスループット・Prometheus スナップショットを JSON/Markdown に出力
-  - **相別 `query_range`**: k6 ブロック開始時刻を基準に、各相と同じ秒幅の Unix 窓で `sum(fx_outbox_backlog_total)` / `max(fx_kafka_consumer_group_lag)` / `sum(hikaricp_connections_active)` を取得（JSON の `prometheus_by_phase`）。`--prometheus-range-step` で step を変更。`--disable-phase-prometheus` で無効化可能
+  - **相別 `query_range`**: k6 ブロック開始時刻を基準に、各相と同じ秒幅の Unix 窓で `sum(fx_outbox_backlog)` / `max(fx_kafka_consumer_group_lag)` / `sum(hikaricp_connections_active)` を取得（JSON の `prometheus_by_phase`）。`--prometheus-range-step` で step を変更。`--disable-phase-prometheus` で無効化可能
   - 既定は `TRACE_SAMPLE_RATE=0`（POST のみ。E2E まで見る場合は `--trace-sample-rate 0.05` など）
 - `verify_db_connection_budget.py`
   - `openshift/fx-trading-db-separated.yaml` 想定で **サービス×DB ホスト×Hikari 最大接続**をレプリカ数で積み上げ、`max_connections` と比較する JSON を出力（`--pg-max-connections` または `oc exec` で `SHOW max_connections`）
+
+## 最近の運用メモ
+
+- `run_test_plan_suite.py` の **baseline** は、現在は **純粋な正常系**です。以前の `BASELINE_FAILURE_PERCENT=5` による失敗混在は除去しました。
+- シナリオ間の Kafka lag 持ち越しを避けるため、`run_test_plan_suite.py` は各シナリオ後に **lag settle 待ち**を行います（既定: `max(fx_kafka_consumer_group_lag) <= 100` まで最大 180 秒待機）。
+- Outbox backlog の Prometheus 指標は実際の scrape 名に合わせて **`fx_outbox_backlog`** を使用します。
 
 ## 事前条件
 

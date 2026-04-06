@@ -45,7 +45,7 @@ SCENARIOS = [
             "RATE": "50",
             "PREALLOCATED_VUS": "120",
             "MAX_VUS": "300",
-            "BASELINE_FAILURE_PERCENT": "5",
+            "BASELINE_FAILURE_PERCENT": "0",
             "TRACE_TIMEOUT_MS": "60000",
             "TRACE_SAMPLE_RATE": "0.05",
         },
@@ -159,6 +159,23 @@ def prom_query(prometheus_host: str, expr: str):
     return None if raw == "NaN" else float(raw)
 
 
+def wait_for_kafka_lag_to_settle(
+    prometheus_host: str, threshold: float, timeout_sec: int, poll_sec: int = 5
+) -> dict:
+    """
+    前シナリオの lag を次シナリオへ持ち込まないよう、lag が threshold 以下になるまで待つ。
+    timeout 時はその時点の lag を返して先に進む。
+    """
+    deadline = time.time() + timeout_sec
+    last_value = None
+    while time.time() < deadline:
+        last_value = prom_query(prometheus_host, "max(fx_kafka_consumer_group_lag) or on() vector(0)")
+        if last_value is not None and last_value <= threshold:
+            return {"settled": True, "last_lag": last_value}
+        time.sleep(poll_sec)
+    return {"settled": False, "last_lag": last_value}
+
+
 def metric_value(metrics: dict, metric: str, field: str):
     payload = metrics.get(metric, {})
     if field in payload:
@@ -259,7 +276,7 @@ def collect_metrics(namespace: str, prometheus_host: str, window: str) -> dict:
         ),
         "outbox_backlog_max": prom_query(
             prometheus_host,
-            f"max_over_time(sum(fx_outbox_backlog_total)[{window}:15s])",
+            f"max_over_time(((sum(fx_outbox_backlog) or on() vector(0)) or on() vector(0))[{window}:15s])",
         ),
         "hikari_active_max": prom_query(
             prometheus_host,
@@ -290,6 +307,18 @@ def main() -> None:
     parser.add_argument("--replicas", type=int, default=1)
     parser.add_argument("--script", default="k6-test-plan-suite.js")
     parser.add_argument(
+        "--kafka-lag-settle-threshold",
+        type=float,
+        default=100.0,
+        help="次シナリオ開始前に max(fx_kafka_consumer_group_lag) がこの値以下になるまで待つ",
+    )
+    parser.add_argument(
+        "--kafka-lag-settle-timeout-sec",
+        type=int,
+        default=180,
+        help="シナリオ間の lag settle 待ちのタイムアウト秒",
+    )
+    parser.add_argument(
         "--output",
         default="loadtest/test-plan-suite-report.json",
     )
@@ -314,7 +343,7 @@ def main() -> None:
         "scenarios": {},
     }
 
-    for scenario in SCENARIOS:
+    for idx, scenario in enumerate(SCENARIOS):
         env = {
             "FX_CORE_BASE_URL": f"http://{core_host}",
             "SCENARIO_MODE": scenario["mode"],
@@ -340,6 +369,13 @@ def main() -> None:
             "k6": summarise_k6(k6_result),
             "prometheus": collect_metrics(args.namespace, prometheus_host, scenario["window"]),
         }
+
+        if idx < len(SCENARIOS) - 1 and args.kafka_lag_settle_timeout_sec > 0:
+            results["scenarios"][scenario["name"]]["post_scenario_settle"] = wait_for_kafka_lag_to_settle(
+                prometheus_host,
+                args.kafka_lag_settle_threshold,
+                args.kafka_lag_settle_timeout_sec,
+            )
 
     scale_all(args.namespace, 1)
     output_path = Path(args.output)

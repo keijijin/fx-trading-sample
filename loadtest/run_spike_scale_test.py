@@ -134,7 +134,7 @@ def collect_phase_range_metrics(
         ("cool", t_start + warm_sec + spike_sec, t_start + total_sec),
     ]
     queries: dict[str, tuple[str, str]] = {
-        "outbox_backlog_sum": ("sum(fx_outbox_backlog_total)", "sum"),
+        "outbox_backlog_sum": ("(sum(fx_outbox_backlog) or on() vector(0))", "sum"),
         "kafka_lag_max": ("max(fx_kafka_consumer_group_lag)", "max"),
         "hikaricp_active_sum": ("sum(hikaricp_connections_active)", "sum"),
     }
@@ -177,7 +177,7 @@ def collect_snapshot(prometheus_host: str, window: str) -> dict:
         ),
         "outbox_backlog_max": prom_query(
             prometheus_host,
-            f"max_over_time(sum(fx_outbox_backlog_total)[{window}:15s])",
+            f"max_over_time(((sum(fx_outbox_backlog) or on() vector(0)) or on() vector(0))[{window}:15s])",
         ),
         "fx_core_tx_p95_s": prom_query(
             prometheus_host,
@@ -386,7 +386,7 @@ def main() -> None:
                 "## 相別 Prometheus（query_range）",
                 "",
                 "試験ブロック開始時刻を `t0` とし、k6 の warm / spike / cool 秒数と**同じ幅**の Unix 窓で "
-                "`sum(fx_outbox_backlog_total)` / `max(fx_kafka_consumer_group_lag)` / `sum(hikaricp_connections_active)` を集計（min/max/avg）。",
+                "`(sum(fx_outbox_backlog) or on() vector(0))` / `max(fx_kafka_consumer_group_lag)` / `sum(hikaricp_connections_active)` を集計（min/max/avg）。",
                 "",
                 "| replicas | 相 | Outbox avg | Outbox max | Kafka lag avg | Kafka lag max | Hikari active avg | Hikari max |",
                 "|---|:---:|---:|---:|---:|---:|---:|---:|",

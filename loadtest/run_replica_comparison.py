@@ -96,7 +96,7 @@ def collect_metrics(namespace: str, prometheus_host: str, window: str) -> dict:
         ),
         "outbox_backlog_max": prom_query(
             prometheus_host,
-            f"max_over_time(sum(fx_outbox_backlog_total)[{window}:15s])",
+            f"max_over_time(((sum(fx_outbox_backlog) or on() vector(0)) or on() vector(0))[{window}:15s])",
         ),
         "hikari_active_max": prom_query(
             prometheus_host,
