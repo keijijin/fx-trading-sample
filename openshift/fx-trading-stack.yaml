@@ -410,7 +410,7 @@ spec:
             - name: KAFKA_MIN_INSYNC_REPLICAS
               value: "2"
             - name: KAFKA_NUM_PARTITIONS
-              value: "6"
+              value: "12"
             - name: KAFKA_LOG_DIRS
               value: /tmp/kraft-combined-logs
           ports:

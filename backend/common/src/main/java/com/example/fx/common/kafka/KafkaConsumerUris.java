@@ -16,7 +16,7 @@ public final class KafkaConsumerUris {
         return "kafka:" + topic
                 + "?brokers={{kafka.bootstrap.servers}}"
                 + "&groupId=" + groupId
-                + "&consumersCount=2"
+                + "&consumersCount={{kafka.consumers.count:1}}"
                 + "&maxPollRecords=100"
                 + "&pollTimeoutMs=1000"
                 + "&sessionTimeoutMs=60000"

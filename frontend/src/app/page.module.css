@@ -1,7 +1,9 @@
 .page {
   min-height: 100vh;
   background:
-    radial-gradient(circle at top, rgba(79, 209, 197, 0.18), transparent 30%),
+    radial-gradient(circle at top left, rgba(79, 209, 197, 0.24), transparent 26%),
+    radial-gradient(circle at top right, rgba(129, 140, 248, 0.2), transparent 28%),
+    radial-gradient(circle at bottom left, rgba(244, 114, 182, 0.12), transparent 24%),
     linear-gradient(180deg, #07111f 0%, #091827 48%, #050b14 100%);
   color: #e5eefb;
   font-family: var(--font-geist-sans);
@@ -22,12 +24,16 @@
 
 .heroCopy,
 .summaryCard,
+.heroStatCard,
+.flowCard,
 .controlPanel,
 .timelineCard,
 .statusCard {
   border: 1px solid rgba(144, 205, 244, 0.16);
   border-radius: 24px;
-  background: rgba(8, 15, 27, 0.82);
+  background:
+    linear-gradient(180deg, rgba(20, 31, 52, 0.86), rgba(8, 15, 27, 0.9)),
+    rgba(8, 15, 27, 0.82);
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.24);
   backdrop-filter: blur(18px);
 }
@@ -71,6 +77,14 @@
   padding: 24px;
 }
 
+.summaryCard:nth-child(1) {
+  border-color: rgba(79, 209, 197, 0.25);
+}
+
+.summaryCard:nth-child(2) {
+  border-color: rgba(129, 140, 248, 0.24);
+}
+
 .summaryCard h2 {
   margin: 12px 0 8px;
   font-size: 1.2rem;
@@ -85,6 +99,29 @@
   display: grid;
   gap: 20px;
   margin-bottom: 24px;
+}
+
+.heroStats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.heroStatCard {
+  display: grid;
+  gap: 10px;
+  padding: 22px;
+}
+
+.heroStatCard strong {
+  font-size: clamp(1.6rem, 2vw, 2.4rem);
+  letter-spacing: -0.04em;
+}
+
+.heroStatCard p {
+  color: #b7c6dd;
+  line-height: 1.65;
 }
 
 .scenarioTabs {
@@ -172,6 +209,7 @@
   height: 100%;
   border-radius: inherit;
   transition: width 220ms ease;
+  background: linear-gradient(90deg, #4fd1c5 0%, #7c3aed 50%, #f472b6 100%);
 }
 
 .sliderRow {
@@ -205,6 +243,248 @@
   display: grid;
   grid-template-columns: minmax(0, 1.1fr) minmax(320px, 0.9fr);
   gap: 24px;
+}
+
+.flowCard {
+  display: grid;
+  gap: 18px;
+  padding: 24px;
+  margin-bottom: 24px;
+}
+
+.architectureCard {
+  display: grid;
+  gap: 18px;
+  padding: 24px;
+  margin-bottom: 24px;
+  border: 1px solid rgba(144, 205, 244, 0.16);
+  border-radius: 24px;
+  background:
+    linear-gradient(180deg, rgba(20, 31, 52, 0.86), rgba(8, 15, 27, 0.9)),
+    rgba(8, 15, 27, 0.82);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.24);
+  backdrop-filter: blur(18px);
+}
+
+.architectureCanvas {
+  position: relative;
+  min-height: 760px;
+  border-radius: 24px;
+  overflow: auto;
+  background:
+    radial-gradient(circle at 20% 20%, rgba(79, 209, 197, 0.08), transparent 20%),
+    radial-gradient(circle at 80% 10%, rgba(129, 140, 248, 0.08), transparent 20%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.03), rgba(255, 255, 255, 0.01));
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.architectureSvg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  min-width: 1160px;
+}
+
+.architectureEdge {
+  fill: none;
+  stroke-width: 0.35;
+  stroke-linecap: round;
+  transition: stroke 160ms ease, opacity 160ms ease;
+}
+
+.architectureEdgeIdle {
+  stroke: rgba(148, 163, 184, 0.22);
+}
+
+.architectureEdgeSuccess {
+  stroke: rgba(52, 211, 153, 0.5);
+}
+
+.architectureEdgeRunning {
+  stroke: rgba(96, 165, 250, 0.7);
+  stroke-dasharray: 1.2 0.8;
+  animation: edgePulse 3s linear infinite;
+}
+
+.architectureEdgeWarning {
+  stroke: rgba(251, 191, 36, 0.7);
+}
+
+.architectureEdgeDanger {
+  stroke: rgba(248, 113, 113, 0.78);
+}
+
+.architectureNode {
+  position: absolute;
+  width: 132px;
+  min-height: 78px;
+  padding: 12px 12px 10px;
+  transform: translate(-50%, -50%);
+  border-radius: 18px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(15, 23, 42, 0.78);
+  box-shadow: 0 14px 28px rgba(0, 0, 0, 0.26);
+  backdrop-filter: blur(10px);
+  z-index: 1;
+}
+
+.architectureNodeCompact {
+  width: 116px;
+  min-height: 70px;
+}
+
+.architectureNode h3 {
+  font-size: 0.84rem;
+  line-height: 1.25;
+}
+
+.architectureNode p {
+  margin-top: 4px;
+  font-size: 0.72rem;
+  line-height: 1.35;
+  color: #b7c6dd;
+}
+
+.architectureNode strong {
+  display: inline-flex;
+  margin-top: 8px;
+  font-size: 0.72rem;
+  color: #f8fbff;
+}
+
+.architectureNodeIdle {
+  border-color: rgba(148, 163, 184, 0.22);
+  background: linear-gradient(180deg, rgba(51, 65, 85, 0.5), rgba(15, 23, 42, 0.82));
+}
+
+.architectureNodeSuccess {
+  border-color: rgba(52, 211, 153, 0.45);
+  background: linear-gradient(180deg, rgba(16, 185, 129, 0.24), rgba(6, 78, 59, 0.84));
+}
+
+.architectureNodeRunning {
+  border-color: rgba(96, 165, 250, 0.52);
+  background: linear-gradient(180deg, rgba(59, 130, 246, 0.26), rgba(15, 23, 42, 0.86));
+  box-shadow:
+    0 0 0 1px rgba(147, 197, 253, 0.08),
+    0 0 24px rgba(59, 130, 246, 0.16);
+}
+
+.architectureNodeWarning {
+  border-color: rgba(251, 191, 36, 0.52);
+  background: linear-gradient(180deg, rgba(245, 158, 11, 0.26), rgba(120, 53, 15, 0.84));
+}
+
+.architectureNodeDanger {
+  border-color: rgba(248, 113, 113, 0.56);
+  background: linear-gradient(180deg, rgba(239, 68, 68, 0.28), rgba(127, 29, 29, 0.86));
+}
+
+.flowMeta {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.flowGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.flowSegment {
+  display: grid;
+  gap: 12px;
+}
+
+.flowConnector {
+  height: 8px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, rgba(79, 209, 197, 0.4), rgba(129, 140, 248, 0.35));
+  opacity: 0.7;
+}
+
+.flowNode {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 12px;
+  align-items: start;
+  padding: 16px;
+  border-radius: 20px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.03);
+  min-height: 118px;
+}
+
+.flowNode h3 {
+  font-size: 1rem;
+  margin-bottom: 6px;
+}
+
+.flowNode p {
+  color: #b7c6dd;
+  font-size: 0.92rem;
+  line-height: 1.55;
+}
+
+.flowNode strong {
+  grid-column: 1 / -1;
+  font-size: 0.85rem;
+  color: #eaf2ff;
+}
+
+.flowStepNo {
+  width: 34px;
+  height: 34px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 800;
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.flowNodeIdle {
+  border-color: rgba(148, 163, 184, 0.18);
+  background: linear-gradient(180deg, rgba(71, 85, 105, 0.16), rgba(15, 23, 42, 0.3));
+}
+
+.flowNodeRunning {
+  border-color: rgba(96, 165, 250, 0.4);
+  background: linear-gradient(180deg, rgba(59, 130, 246, 0.18), rgba(14, 116, 144, 0.14));
+  box-shadow: inset 0 0 0 1px rgba(147, 197, 253, 0.14);
+}
+
+.flowNodeSuccess {
+  border-color: rgba(52, 211, 153, 0.4);
+  background: linear-gradient(180deg, rgba(16, 185, 129, 0.2), rgba(6, 95, 70, 0.12));
+}
+
+.flowNodeWarning {
+  border-color: rgba(251, 191, 36, 0.4);
+  background: linear-gradient(180deg, rgba(245, 158, 11, 0.2), rgba(146, 64, 14, 0.12));
+}
+
+.flowNodeDanger {
+  border-color: rgba(248, 113, 113, 0.4);
+  background: linear-gradient(180deg, rgba(239, 68, 68, 0.2), rgba(127, 29, 29, 0.12));
+}
+
+.flowLegend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.legendChip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px 12px;
+  border-radius: 999px;
+  font-size: 0.82rem;
 }
 
 .timelineCard,
@@ -550,6 +830,15 @@
   color: #b8fff5;
 }
 
+.pulseDot {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: #5eead4;
+  box-shadow: 0 0 0 0 rgba(94, 234, 212, 0.6);
+  animation: pulse 1.8s infinite;
+}
+
 .mutedText {
   color: #91a4c0;
   font-size: 0.9rem;
@@ -592,10 +881,40 @@
   color: #b7c6dd;
 }
 
+@keyframes pulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(94, 234, 212, 0.6);
+  }
+  70% {
+    box-shadow: 0 0 0 10px rgba(94, 234, 212, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(94, 234, 212, 0);
+  }
+}
+
+@keyframes edgePulse {
+  from {
+    stroke-dashoffset: 0;
+  }
+  to {
+    stroke-dashoffset: -8;
+  }
+}
+
 @media (max-width: 1080px) {
   .hero,
-  .contentGrid {
+  .contentGrid,
+  .heroStats {
     grid-template-columns: 1fr;
+  }
+
+  .flowGrid {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .architectureCanvas {
+    min-height: 820px;
   }
 }
 
@@ -609,8 +928,13 @@
   .formGrid,
   .toggleGrid,
   .snapshotGrid,
-  .serviceGrid {
+  .serviceGrid,
+  .flowGrid {
     grid-template-columns: 1fr;
+  }
+
+  .architectureCanvas {
+    min-height: 920px;
   }
 
   .sliderRow {
