@@ -298,7 +298,7 @@ oc apply -f openshift/observability-stack.yaml
 - **DB 分離**: サービス別 8 DB 構成で接続・ロック競合を分離
 - **残高バケット化**: 16 分割ハッシュで行ロック競合を分散
 - **Outbox 最適化**: `UPDATE RETURNING` で DB 往復を半減（4→2）、`parallelProcessing`（4 スレッド制限）、部分インデックス、SENT クリーンアップ
-- **Kafka チューニング**: 3 broker / 6 partitions / `consumersCount=2` / `CooperativeStickyAssignor` / `lingerMs=5`
+- **Kafka チューニング**: 3 broker / 12 partitions / `consumersCount=1` / `CooperativeStickyAssignor` / `lingerMs=5`
 - **`trade_activity` 非同期化**: `ConcurrentLinkedQueue` + バッチフラッシュ
 
 詳細は `design/problems-and-mitigations.md` §8 を参照。

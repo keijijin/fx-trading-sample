@@ -816,7 +816,7 @@ public abstract class AbstractOutboxPublisherRoute extends RouteBuilder {
 
 ## 18.2 Cover Service Consumer
 
-Kafka コンシューマ URI は共通ヘルパー `KafkaConsumerUris.consumer()` で統一する。`consumersCount=2` でルートあたり 2 スレッド消費、`CooperativeStickyAssignor` でリバランスを抑制する。
+Kafka コンシューマ URI は共通ヘルパー `KafkaConsumerUris.consumer()` で統一する。現行の OpenShift 標準構成では `consumersCount=1` を採用し、`CooperativeStickyAssignor` でリバランスを抑制する。多重化は一時的に lag を下げることがあるが、スケール時のリバランス悪化もあるため、固定値ではなく運用条件に応じて再評価する。
 
 ```java
 // KafkaConsumerUris（共通ヘルパー）
@@ -824,7 +824,7 @@ public static String consumer(String topic, String groupId) {
     return "kafka:" + topic
         + "?brokers={{kafka.bootstrap.servers}}"
         + "&groupId=" + groupId
-        + "&consumersCount=2"
+        + "&consumersCount={{kafka.consumers.count:1}}"
         + "&maxPollRecords=100"
         + "&pollTimeoutMs=1000"
         + "&sessionTimeoutMs=60000"

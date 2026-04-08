@@ -94,6 +94,94 @@ spec:
       port: 5432
       targetPort: 5432
 ---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: fx-core-db-data
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 10Gi
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: fx-trade-saga-db-data
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 10Gi
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: fx-cover-db-data
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 5Gi
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: fx-risk-db-data
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 5Gi
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: fx-accounting-db-data
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 5Gi
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: fx-settlement-db-data
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 5Gi
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: fx-notification-db-data
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 5Gi
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: fx-compliance-db-data
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 5Gi
+---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -131,13 +219,40 @@ spec:
           ports:
             - containerPort: 5432
               name: postgres
+          startupProbe:
+            tcpSocket:
+              port: 5432
+            periodSeconds: 10
+            failureThreshold: 30
+          readinessProbe:
+            tcpSocket:
+              port: 5432
+            periodSeconds: 10
+            failureThreshold: 3
+          livenessProbe:
+            tcpSocket:
+              port: 5432
+            periodSeconds: 20
+            failureThreshold: 3
+          resources:
+            requests:
+              cpu: "500m"
+              memory: "768Mi"
+            limits:
+              cpu: "1"
+              memory: "1Gi"
           volumeMounts:
             - name: initdb
               mountPath: /docker-entrypoint-initdb.d
+            - name: data
+              mountPath: /tmp/pgdata
       volumes:
         - name: initdb
           configMap:
             name: fx-postgres-init
+        - name: data
+          persistentVolumeClaim:
+            claimName: fx-core-db-data
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -157,6 +272,13 @@ spec:
         - name: postgres
           image: image-registry.openshift-image-registry.svc:5000/fx-trading-sample/fx-postgres:latest
           imagePullPolicy: Always
+          args:
+            - -c
+            - max_connections=300
+            - -c
+            - log_lock_waits=on
+            - -c
+            - deadlock_timeout=100ms
           env:
             - name: POSTGRES_DB
               value: fx_trading
@@ -169,13 +291,40 @@ spec:
           ports:
             - containerPort: 5432
               name: postgres
+          startupProbe:
+            tcpSocket:
+              port: 5432
+            periodSeconds: 10
+            failureThreshold: 30
+          readinessProbe:
+            tcpSocket:
+              port: 5432
+            periodSeconds: 10
+            failureThreshold: 3
+          livenessProbe:
+            tcpSocket:
+              port: 5432
+            periodSeconds: 20
+            failureThreshold: 3
+          resources:
+            requests:
+              cpu: "500m"
+              memory: "1Gi"
+            limits:
+              cpu: "1500m"
+              memory: "2Gi"
           volumeMounts:
             - name: initdb
               mountPath: /docker-entrypoint-initdb.d
+            - name: data
+              mountPath: /tmp/pgdata
       volumes:
         - name: initdb
           configMap:
             name: fx-postgres-init
+        - name: data
+          persistentVolumeClaim:
+            claimName: fx-trade-saga-db-data
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -207,13 +356,40 @@ spec:
           ports:
             - containerPort: 5432
               name: postgres
+          startupProbe:
+            tcpSocket:
+              port: 5432
+            periodSeconds: 10
+            failureThreshold: 30
+          readinessProbe:
+            tcpSocket:
+              port: 5432
+            periodSeconds: 10
+            failureThreshold: 3
+          livenessProbe:
+            tcpSocket:
+              port: 5432
+            periodSeconds: 20
+            failureThreshold: 3
+          resources:
+            requests:
+              cpu: "250m"
+              memory: "384Mi"
+            limits:
+              cpu: "750m"
+              memory: "768Mi"
           volumeMounts:
             - name: initdb
               mountPath: /docker-entrypoint-initdb.d
+            - name: data
+              mountPath: /tmp/pgdata
       volumes:
         - name: initdb
           configMap:
             name: fx-postgres-init
+        - name: data
+          persistentVolumeClaim:
+            claimName: fx-cover-db-data
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -245,13 +421,40 @@ spec:
           ports:
             - containerPort: 5432
               name: postgres
+          startupProbe:
+            tcpSocket:
+              port: 5432
+            periodSeconds: 10
+            failureThreshold: 30
+          readinessProbe:
+            tcpSocket:
+              port: 5432
+            periodSeconds: 10
+            failureThreshold: 3
+          livenessProbe:
+            tcpSocket:
+              port: 5432
+            periodSeconds: 20
+            failureThreshold: 3
+          resources:
+            requests:
+              cpu: "250m"
+              memory: "384Mi"
+            limits:
+              cpu: "750m"
+              memory: "768Mi"
           volumeMounts:
             - name: initdb
               mountPath: /docker-entrypoint-initdb.d
+            - name: data
+              mountPath: /tmp/pgdata
       volumes:
         - name: initdb
           configMap:
             name: fx-postgres-init
+        - name: data
+          persistentVolumeClaim:
+            claimName: fx-risk-db-data
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -283,13 +486,40 @@ spec:
           ports:
             - containerPort: 5432
               name: postgres
+          startupProbe:
+            tcpSocket:
+              port: 5432
+            periodSeconds: 10
+            failureThreshold: 30
+          readinessProbe:
+            tcpSocket:
+              port: 5432
+            periodSeconds: 10
+            failureThreshold: 3
+          livenessProbe:
+            tcpSocket:
+              port: 5432
+            periodSeconds: 20
+            failureThreshold: 3
+          resources:
+            requests:
+              cpu: "250m"
+              memory: "384Mi"
+            limits:
+              cpu: "750m"
+              memory: "768Mi"
           volumeMounts:
             - name: initdb
               mountPath: /docker-entrypoint-initdb.d
+            - name: data
+              mountPath: /tmp/pgdata
       volumes:
         - name: initdb
           configMap:
             name: fx-postgres-init
+        - name: data
+          persistentVolumeClaim:
+            claimName: fx-accounting-db-data
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -321,13 +551,40 @@ spec:
           ports:
             - containerPort: 5432
               name: postgres
+          startupProbe:
+            tcpSocket:
+              port: 5432
+            periodSeconds: 10
+            failureThreshold: 30
+          readinessProbe:
+            tcpSocket:
+              port: 5432
+            periodSeconds: 10
+            failureThreshold: 3
+          livenessProbe:
+            tcpSocket:
+              port: 5432
+            periodSeconds: 20
+            failureThreshold: 3
+          resources:
+            requests:
+              cpu: "250m"
+              memory: "384Mi"
+            limits:
+              cpu: "750m"
+              memory: "768Mi"
           volumeMounts:
             - name: initdb
               mountPath: /docker-entrypoint-initdb.d
+            - name: data
+              mountPath: /tmp/pgdata
       volumes:
         - name: initdb
           configMap:
             name: fx-postgres-init
+        - name: data
+          persistentVolumeClaim:
+            claimName: fx-settlement-db-data
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -359,13 +616,40 @@ spec:
           ports:
             - containerPort: 5432
               name: postgres
+          startupProbe:
+            tcpSocket:
+              port: 5432
+            periodSeconds: 10
+            failureThreshold: 30
+          readinessProbe:
+            tcpSocket:
+              port: 5432
+            periodSeconds: 10
+            failureThreshold: 3
+          livenessProbe:
+            tcpSocket:
+              port: 5432
+            periodSeconds: 20
+            failureThreshold: 3
+          resources:
+            requests:
+              cpu: "250m"
+              memory: "384Mi"
+            limits:
+              cpu: "750m"
+              memory: "768Mi"
           volumeMounts:
             - name: initdb
               mountPath: /docker-entrypoint-initdb.d
+            - name: data
+              mountPath: /tmp/pgdata
       volumes:
         - name: initdb
           configMap:
             name: fx-postgres-init
+        - name: data
+          persistentVolumeClaim:
+            claimName: fx-notification-db-data
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -397,13 +681,40 @@ spec:
           ports:
             - containerPort: 5432
               name: postgres
+          startupProbe:
+            tcpSocket:
+              port: 5432
+            periodSeconds: 10
+            failureThreshold: 30
+          readinessProbe:
+            tcpSocket:
+              port: 5432
+            periodSeconds: 10
+            failureThreshold: 3
+          livenessProbe:
+            tcpSocket:
+              port: 5432
+            periodSeconds: 20
+            failureThreshold: 3
+          resources:
+            requests:
+              cpu: "250m"
+              memory: "384Mi"
+            limits:
+              cpu: "750m"
+              memory: "768Mi"
           volumeMounts:
             - name: initdb
               mountPath: /docker-entrypoint-initdb.d
+            - name: data
+              mountPath: /tmp/pgdata
       volumes:
         - name: initdb
           configMap:
             name: fx-postgres-init
+        - name: data
+          persistentVolumeClaim:
+            claimName: fx-compliance-db-data
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -460,7 +771,34 @@ spec:
             - name: SAGA_DB_PASSWORD
               value: fx
             - name: ACTIVITY_DB_POOL_MAX_SIZE
-              value: "20"
+              value: "10"
+            - name: SAGA_DB_POOL_MAX_SIZE
+              value: "5"
+          startupProbe:
+            httpGet:
+              path: /actuator/health
+              port: 8080
+            periodSeconds: 10
+            failureThreshold: 30
+          readinessProbe:
+            httpGet:
+              path: /actuator/health/readiness
+              port: 8080
+            periodSeconds: 10
+            failureThreshold: 3
+          livenessProbe:
+            httpGet:
+              path: /actuator/health/liveness
+              port: 8080
+            periodSeconds: 20
+            failureThreshold: 3
+          resources:
+            requests:
+              cpu: "300m"
+              memory: "768Mi"
+            limits:
+              cpu: "1"
+              memory: "1Gi"
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -488,10 +826,39 @@ spec:
               value: "8081"
             - name: OUTBOX_POLL_PERIOD_MS
               value: "50"
+            - name: SPRING_DATASOURCE_HIKARI_MAXIMUM_POOL_SIZE
+              value: "8"
+            - name: SPRING_DATASOURCE_HIKARI_MINIMUM_IDLE
+              value: "2"
             - name: OTEL_EXPORTER_OTLP_ENDPOINT
               value: http://fx-tempo:4318/v1/traces
             - name: LOKI_URL
               value: http://fx-loki:3100/loki/api/v1/push
+          startupProbe:
+            httpGet:
+              path: /actuator/health
+              port: 8081
+            periodSeconds: 10
+            failureThreshold: 30
+          readinessProbe:
+            httpGet:
+              path: /actuator/health/readiness
+              port: 8081
+            periodSeconds: 10
+            failureThreshold: 3
+          livenessProbe:
+            httpGet:
+              path: /actuator/health/liveness
+              port: 8081
+            periodSeconds: 20
+            failureThreshold: 3
+          resources:
+            requests:
+              cpu: "300m"
+              memory: "512Mi"
+            limits:
+              cpu: "1"
+              memory: "768Mi"
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -529,6 +896,33 @@ spec:
               value: fx
             - name: ACTIVITY_DB_PASSWORD
               value: fx
+            - name: ACTIVITY_DB_POOL_MAX_SIZE
+              value: "5"
+          startupProbe:
+            httpGet:
+              path: /actuator/health
+              port: 8082
+            periodSeconds: 10
+            failureThreshold: 30
+          readinessProbe:
+            httpGet:
+              path: /actuator/health/readiness
+              port: 8082
+            periodSeconds: 10
+            failureThreshold: 3
+          livenessProbe:
+            httpGet:
+              path: /actuator/health/liveness
+              port: 8082
+            periodSeconds: 20
+            failureThreshold: 3
+          resources:
+            requests:
+              cpu: "200m"
+              memory: "384Mi"
+            limits:
+              cpu: "750m"
+              memory: "768Mi"
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -566,6 +960,33 @@ spec:
               value: fx
             - name: ACTIVITY_DB_PASSWORD
               value: fx
+            - name: ACTIVITY_DB_POOL_MAX_SIZE
+              value: "5"
+          startupProbe:
+            httpGet:
+              path: /actuator/health
+              port: 8083
+            periodSeconds: 10
+            failureThreshold: 30
+          readinessProbe:
+            httpGet:
+              path: /actuator/health/readiness
+              port: 8083
+            periodSeconds: 10
+            failureThreshold: 3
+          livenessProbe:
+            httpGet:
+              path: /actuator/health/liveness
+              port: 8083
+            periodSeconds: 20
+            failureThreshold: 3
+          resources:
+            requests:
+              cpu: "200m"
+              memory: "384Mi"
+            limits:
+              cpu: "750m"
+              memory: "768Mi"
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -603,6 +1024,33 @@ spec:
               value: fx
             - name: ACTIVITY_DB_PASSWORD
               value: fx
+            - name: ACTIVITY_DB_POOL_MAX_SIZE
+              value: "5"
+          startupProbe:
+            httpGet:
+              path: /actuator/health
+              port: 8084
+            periodSeconds: 10
+            failureThreshold: 30
+          readinessProbe:
+            httpGet:
+              path: /actuator/health/readiness
+              port: 8084
+            periodSeconds: 10
+            failureThreshold: 3
+          livenessProbe:
+            httpGet:
+              path: /actuator/health/liveness
+              port: 8084
+            periodSeconds: 20
+            failureThreshold: 3
+          resources:
+            requests:
+              cpu: "200m"
+              memory: "384Mi"
+            limits:
+              cpu: "750m"
+              memory: "768Mi"
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -640,6 +1088,33 @@ spec:
               value: fx
             - name: ACTIVITY_DB_PASSWORD
               value: fx
+            - name: ACTIVITY_DB_POOL_MAX_SIZE
+              value: "5"
+          startupProbe:
+            httpGet:
+              path: /actuator/health
+              port: 8085
+            periodSeconds: 10
+            failureThreshold: 30
+          readinessProbe:
+            httpGet:
+              path: /actuator/health/readiness
+              port: 8085
+            periodSeconds: 10
+            failureThreshold: 3
+          livenessProbe:
+            httpGet:
+              path: /actuator/health/liveness
+              port: 8085
+            periodSeconds: 20
+            failureThreshold: 3
+          resources:
+            requests:
+              cpu: "200m"
+              memory: "384Mi"
+            limits:
+              cpu: "750m"
+              memory: "768Mi"
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -677,6 +1152,33 @@ spec:
               value: fx
             - name: ACTIVITY_DB_PASSWORD
               value: fx
+            - name: ACTIVITY_DB_POOL_MAX_SIZE
+              value: "5"
+          startupProbe:
+            httpGet:
+              path: /actuator/health
+              port: 8086
+            periodSeconds: 10
+            failureThreshold: 30
+          readinessProbe:
+            httpGet:
+              path: /actuator/health/readiness
+              port: 8086
+            periodSeconds: 10
+            failureThreshold: 3
+          livenessProbe:
+            httpGet:
+              path: /actuator/health/liveness
+              port: 8086
+            periodSeconds: 20
+            failureThreshold: 3
+          resources:
+            requests:
+              cpu: "150m"
+              memory: "256Mi"
+            limits:
+              cpu: "500m"
+              memory: "512Mi"
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -714,3 +1216,30 @@ spec:
               value: fx
             - name: ACTIVITY_DB_PASSWORD
               value: fx
+            - name: ACTIVITY_DB_POOL_MAX_SIZE
+              value: "5"
+          startupProbe:
+            httpGet:
+              path: /actuator/health
+              port: 8087
+            periodSeconds: 10
+            failureThreshold: 30
+          readinessProbe:
+            httpGet:
+              path: /actuator/health/readiness
+              port: 8087
+            periodSeconds: 10
+            failureThreshold: 3
+          livenessProbe:
+            httpGet:
+              path: /actuator/health/liveness
+              port: 8087
+            periodSeconds: 20
+            failureThreshold: 3
+          resources:
+            requests:
+              cpu: "150m"
+              memory: "256Mi"
+            limits:
+              cpu: "500m"
+              memory: "512Mi"

@@ -321,6 +321,17 @@ spec:
       port: 3000
       targetPort: 3000
 ---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: fx-postgres-data
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 10Gi
+---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -351,13 +362,40 @@ spec:
           ports:
             - containerPort: 5432
               name: postgres
+          startupProbe:
+            tcpSocket:
+              port: 5432
+            periodSeconds: 10
+            failureThreshold: 30
+          readinessProbe:
+            tcpSocket:
+              port: 5432
+            periodSeconds: 10
+            failureThreshold: 3
+          livenessProbe:
+            tcpSocket:
+              port: 5432
+            periodSeconds: 20
+            failureThreshold: 3
+          resources:
+            requests:
+              cpu: "500m"
+              memory: "512Mi"
+            limits:
+              cpu: "1"
+              memory: "1Gi"
           volumeMounts:
             - name: initdb
               mountPath: /docker-entrypoint-initdb.d
+            - name: data
+              mountPath: /tmp/pgdata
       volumes:
         - name: initdb
           configMap:
             name: fx-postgres-init
+        - name: data
+          persistentVolumeClaim:
+            claimName: fx-postgres-data
 ---
 apiVersion: apps/v1
 kind: StatefulSet
@@ -374,6 +412,22 @@ spec:
       labels:
         app: fx-kafka
     spec:
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                topologyKey: kubernetes.io/hostname
+                labelSelector:
+                  matchLabels:
+                    app: fx-kafka
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: kubernetes.io/hostname
+          whenUnsatisfiable: ScheduleAnyway
+          labelSelector:
+            matchLabels:
+              app: fx-kafka
       containers:
         - name: kafka
           image: image-registry.openshift-image-registry.svc:5000/fx-trading-sample/fx-kafka:latest
@@ -418,12 +472,40 @@ spec:
               name: client
             - containerPort: 9093
               name: controller
+          startupProbe:
+            tcpSocket:
+              port: 9092
+            periodSeconds: 10
+            failureThreshold: 30
+          readinessProbe:
+            tcpSocket:
+              port: 9092
+            periodSeconds: 10
+            failureThreshold: 6
+          livenessProbe:
+            tcpSocket:
+              port: 9092
+            periodSeconds: 20
+            failureThreshold: 6
+          resources:
+            requests:
+              cpu: "500m"
+              memory: "1Gi"
+            limits:
+              cpu: "1500m"
+              memory: "2Gi"
           volumeMounts:
             - name: kafka-data
               mountPath: /tmp/kraft-combined-logs
-      volumes:
-        - name: kafka-data
-          emptyDir: {}
+  volumeClaimTemplates:
+    - metadata:
+        name: kafka-data
+      spec:
+        accessModes:
+          - ReadWriteOnce
+        resources:
+          requests:
+            storage: 20Gi
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -459,7 +541,7 @@ spec:
             - name: SERVER_PORT
               value: "8080"
             - name: OUTBOX_POLL_PERIOD_MS
-              value: "100"
+              value: "50"
             - name: OTEL_EXPORTER_OTLP_ENDPOINT
               value: http://fx-tempo:4318/v1/traces
             - name: LOKI_URL
@@ -502,7 +584,7 @@ spec:
             - name: SERVER_PORT
               value: "8081"
             - name: OUTBOX_POLL_PERIOD_MS
-              value: "100"
+              value: "50"
             - name: OTEL_EXPORTER_OTLP_ENDPOINT
               value: http://fx-tempo:4318/v1/traces
             - name: LOKI_URL
@@ -545,7 +627,7 @@ spec:
             - name: SERVER_PORT
               value: "8082"
             - name: OUTBOX_POLL_PERIOD_MS
-              value: "100"
+              value: "50"
             - name: OTEL_EXPORTER_OTLP_ENDPOINT
               value: http://fx-tempo:4318/v1/traces
             - name: LOKI_URL
@@ -588,7 +670,7 @@ spec:
             - name: SERVER_PORT
               value: "8083"
             - name: OUTBOX_POLL_PERIOD_MS
-              value: "100"
+              value: "50"
             - name: OTEL_EXPORTER_OTLP_ENDPOINT
               value: http://fx-tempo:4318/v1/traces
             - name: LOKI_URL
@@ -631,7 +713,7 @@ spec:
             - name: SERVER_PORT
               value: "8084"
             - name: OUTBOX_POLL_PERIOD_MS
-              value: "100"
+              value: "50"
             - name: OTEL_EXPORTER_OTLP_ENDPOINT
               value: http://fx-tempo:4318/v1/traces
             - name: LOKI_URL
@@ -674,7 +756,7 @@ spec:
             - name: SERVER_PORT
               value: "8085"
             - name: OUTBOX_POLL_PERIOD_MS
-              value: "100"
+              value: "50"
             - name: OTEL_EXPORTER_OTLP_ENDPOINT
               value: http://fx-tempo:4318/v1/traces
             - name: LOKI_URL
@@ -717,7 +799,7 @@ spec:
             - name: SERVER_PORT
               value: "8086"
             - name: OUTBOX_POLL_PERIOD_MS
-              value: "100"
+              value: "50"
             - name: OTEL_EXPORTER_OTLP_ENDPOINT
               value: http://fx-tempo:4318/v1/traces
             - name: LOKI_URL
@@ -760,7 +842,7 @@ spec:
             - name: SERVER_PORT
               value: "8087"
             - name: OUTBOX_POLL_PERIOD_MS
-              value: "100"
+              value: "50"
             - name: OTEL_EXPORTER_OTLP_ENDPOINT
               value: http://fx-tempo:4318/v1/traces
             - name: LOKI_URL
