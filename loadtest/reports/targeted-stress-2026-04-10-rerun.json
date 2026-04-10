@@ -1,0 +1,16 @@
+{
+  "route_host": "fx-core-service-fx-trading-sample.apps.cluster-q4rsn.dynamic.redhatworkshops.io",
+  "k6_exit_code": 0,
+  "summary": {
+    "trade_accepted": 14099,
+    "trade_api_avg_ms": 176.1657328613377,
+    "trade_api_p95_ms": 238.6579795,
+    "trade_e2e_p95_ms": 10026.899999999998,
+    "trace_sampled": 60,
+    "trace_timed_out": null,
+    "saga_completed": 35,
+    "saga_failed": null,
+    "business_failure_rate": null,
+    "http_req_failed_rate": null
+  }
+}
