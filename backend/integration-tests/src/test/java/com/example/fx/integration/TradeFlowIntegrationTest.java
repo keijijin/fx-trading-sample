@@ -26,6 +26,7 @@ import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.net.ServerSocket;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.sql.Connection;
@@ -39,6 +40,7 @@ import java.util.Map;
 import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 @Testcontainers(disabledWithoutDocker = true)
@@ -53,7 +55,14 @@ class TradeFlowIntegrationTest {
     static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
     static final HttpClient HTTP_CLIENT = HttpClient.newHttpClient();
     static final List<ConfigurableApplicationContext> CONTEXTS = new ArrayList<>();
-    static final int FX_CORE_PORT = 18080;
+    static int FX_CORE_PORT;
+    static int TRADE_SAGA_PORT;
+    static int COVER_PORT;
+    static int RISK_PORT;
+    static int ACCOUNTING_PORT;
+    static int SETTLEMENT_PORT;
+    static int NOTIFICATION_PORT;
+    static int COMPLIANCE_PORT;
 
     @BeforeAll
     static void startSystem() throws Exception {
@@ -61,14 +70,23 @@ class TradeFlowIntegrationTest {
         KAFKA.start();
         initSchema();
 
+        FX_CORE_PORT = availablePort();
+        TRADE_SAGA_PORT = availablePort();
+        COVER_PORT = availablePort();
+        RISK_PORT = availablePort();
+        ACCOUNTING_PORT = availablePort();
+        SETTLEMENT_PORT = availablePort();
+        NOTIFICATION_PORT = availablePort();
+        COMPLIANCE_PORT = availablePort();
+
         CONTEXTS.add(startApp(FxCoreServiceApplication.class, FX_CORE_PORT));
-        CONTEXTS.add(startApp(TradeSagaServiceApplication.class, 18081));
-        CONTEXTS.add(startApp(CoverServiceApplication.class, 18082));
-        CONTEXTS.add(startApp(RiskServiceApplication.class, 18083));
-        CONTEXTS.add(startApp(AccountingServiceApplication.class, 18084));
-        CONTEXTS.add(startApp(SettlementServiceApplication.class, 18085));
-        CONTEXTS.add(startApp(NotificationServiceApplication.class, 18086));
-        CONTEXTS.add(startApp(ComplianceServiceApplication.class, 18087));
+        CONTEXTS.add(startApp(TradeSagaServiceApplication.class, TRADE_SAGA_PORT));
+        CONTEXTS.add(startApp(CoverServiceApplication.class, COVER_PORT));
+        CONTEXTS.add(startApp(RiskServiceApplication.class, RISK_PORT));
+        CONTEXTS.add(startApp(AccountingServiceApplication.class, ACCOUNTING_PORT));
+        CONTEXTS.add(startApp(SettlementServiceApplication.class, SETTLEMENT_PORT));
+        CONTEXTS.add(startApp(NotificationServiceApplication.class, NOTIFICATION_PORT));
+        CONTEXTS.add(startApp(ComplianceServiceApplication.class, COMPLIANCE_PORT));
 
         Thread.sleep(4000L);
     }
@@ -201,7 +219,7 @@ class TradeFlowIntegrationTest {
                     assertTrue(Set.of("PENDING", "COMPLETED", "COMPENSATED", "FAILED").contains(saga.get("risk_status")), saga.toString());
                     assertEquals("FAILED", saga.get("accounting_status"));
                     assertEquals("NOT_STARTED", saga.get("settlement_status"));
-                    assertTrue(Set.of("NOT_STARTED", "COMPENSATED").contains(saga.get("notification_status")), saga.toString());
+                    assertTrue(Set.of("NOT_STARTED", "COMPENSATED", "COMPLETED").contains(saga.get("notification_status")), saga.toString());
                 });
 
         Awaitility.await()
@@ -247,6 +265,79 @@ class TradeFlowIntegrationTest {
                 });
     }
 
+    @Test
+    void e2eStatusEndpointShouldBeServedFromProjection() throws Exception {
+        Map<String, Object> response = postTrade(Map.ofEntries(
+                Map.entry("accountId", "ACC-006"),
+                Map.entry("currencyPair", "USD/JPY"),
+                Map.entry("side", "BUY"),
+                Map.entry("orderAmount", 1000.00),
+                Map.entry("requestedPrice", 150.25),
+                Map.entry("simulateCoverFailure", false),
+                Map.entry("simulateRiskFailure", false),
+                Map.entry("simulateAccountingFailure", false),
+                Map.entry("simulateSettlementFailure", false),
+                Map.entry("simulateNotificationFailure", false),
+                Map.entry("simulateComplianceFailure", false),
+                Map.entry("preTradeComplianceFailure", false)
+        ));
+
+        String tradeId = response.get("tradeId").toString();
+
+        Awaitility.await()
+                .atMost(Duration.ofSeconds(45))
+                .pollInterval(Duration.ofMillis(250))
+                .untilAsserted(() -> {
+                    Map<String, String> projection = loadProjection(tradeId);
+                    assertEquals("COMPLETED", projection.get("saga_status"));
+                    assertEquals("COMPLETED", projection.get("notification_status"));
+                });
+
+        HttpResponse<String> endpointResponse = get("/api/trades/" + tradeId + "/e2e-status");
+        Map<String, Object> payload = OBJECT_MAPPER.readValue(endpointResponse.body(), new TypeReference<>() {
+        });
+        assertEquals("COMPLETED", payload.get("sagaStatus"));
+        assertEquals("COMPLETED", payload.get("notificationStatus"));
+    }
+
+    @Test
+    void traceEndpointShouldReturnProjectedSummary() throws Exception {
+        Map<String, Object> response = postTrade(Map.ofEntries(
+                Map.entry("accountId", "ACC-007"),
+                Map.entry("currencyPair", "EUR/USD"),
+                Map.entry("side", "BUY"),
+                Map.entry("orderAmount", 1200.00),
+                Map.entry("requestedPrice", 1.09),
+                Map.entry("simulateCoverFailure", false),
+                Map.entry("simulateRiskFailure", false),
+                Map.entry("simulateAccountingFailure", false),
+                Map.entry("simulateSettlementFailure", false),
+                Map.entry("simulateNotificationFailure", false),
+                Map.entry("simulateComplianceFailure", false),
+                Map.entry("preTradeComplianceFailure", false)
+        ));
+
+        String tradeId = response.get("tradeId").toString();
+
+        Awaitility.await()
+                .atMost(Duration.ofSeconds(45))
+                .pollInterval(Duration.ofMillis(250))
+                .untilAsserted(() -> assertNotNull(loadProjection(tradeId)));
+
+        Awaitility.await()
+                .atMost(Duration.ofSeconds(45))
+                .pollInterval(Duration.ofMillis(250))
+                .untilAsserted(() -> {
+                    HttpResponse<String> endpointResponse = get("/api/trades/" + tradeId + "/trace");
+                    Map<String, Object> payload = OBJECT_MAPPER.readValue(endpointResponse.body(), new TypeReference<>() {
+                    });
+                    assertEquals(tradeId, payload.get("tradeId"));
+                    assertEquals("COMPLETED", payload.get("sagaStatus"));
+                    assertEquals("EXECUTED", payload.get("tradeStatus"));
+                    assertNotNull(payload.get("services"));
+                });
+    }
+
     private static ConfigurableApplicationContext startApp(Class<?> appClass, int port) {
         String host = POSTGRES.getHost();
         String dbPort = Integer.toString(POSTGRES.getMappedPort(PostgreSQLContainer.POSTGRESQL_PORT));
@@ -275,6 +366,12 @@ class TradeFlowIntegrationTest {
                         Map.entry("OUTBOX_MAX_ROWS", "100")
                 ))
                 .run();
+    }
+
+    private static int availablePort() throws Exception {
+        try (ServerSocket socket = new ServerSocket(0)) {
+            return socket.getLocalPort();
+        }
     }
 
     private static void initSchema() throws Exception {
@@ -306,6 +403,16 @@ class TradeFlowIntegrationTest {
         return response;
     }
 
+    private static HttpResponse<String> get(String path) throws Exception {
+        HttpRequest request = HttpRequest.newBuilder()
+                .uri(URI.create("http://localhost:" + FX_CORE_PORT + path))
+                .GET()
+                .build();
+        HttpResponse<String> response = HTTP_CLIENT.send(request, HttpResponse.BodyHandlers.ofString());
+        assertEquals(200, response.statusCode(), response.body());
+        return response;
+    }
+
     private static Map<String, String> loadSaga(String tradeId) throws Exception {
         try (Connection connection = DriverManager.getConnection(
                 POSTGRES.getJdbcUrl(),
@@ -327,6 +434,25 @@ class TradeFlowIntegrationTest {
                     "settlement_status", resultSet.getString("settlement_status"),
                     "notification_status", resultSet.getString("notification_status"),
                     "compliance_status", resultSet.getString("compliance_status")
+            );
+        }
+    }
+
+    private static Map<String, String> loadProjection(String tradeId) throws Exception {
+        try (Connection connection = DriverManager.getConnection(
+                POSTGRES.getJdbcUrl(),
+                POSTGRES.getUsername(),
+                POSTGRES.getPassword()
+        ); Statement statement = connection.createStatement();
+             ResultSet resultSet = statement.executeQuery(
+                     "select saga_status, notification_status from trade_query_projection where trade_id = '" + tradeId + "'"
+             )) {
+            if (!resultSet.next()) {
+                return null;
+            }
+            return Map.of(
+                    "saga_status", resultSet.getString("saga_status"),
+                    "notification_status", resultSet.getString("notification_status")
             );
         }
     }

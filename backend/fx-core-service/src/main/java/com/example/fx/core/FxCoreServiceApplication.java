@@ -501,10 +501,6 @@ class TradeExecutionApplicationService {
         ));
     }
 
-    private BigDecimal signedAmount(String side, BigDecimal amount) {
-        return "SELL".equalsIgnoreCase(side) ? amount.negate() : amount;
-    }
-
     private void recordTransactionDuration(String outcome, long startNanos) {
         Timer.builder("fx_core_transaction_duration_seconds")
                 .publishPercentileHistogram()
@@ -628,13 +624,23 @@ record TradeE2eStatusResponse(
 class TradeTraceQueryService {
     private final JdbcTemplate jdbcTemplate;
     private final org.springframework.jdbc.core.JdbcOperations sagaJdbcOperations;
+    private final TradeQueryProjectionService tradeQueryProjectionService;
 
-    TradeTraceQueryService(JdbcTemplate jdbcTemplate, ActivityJdbcSupport activityJdbcSupport) {
+    TradeTraceQueryService(
+            JdbcTemplate jdbcTemplate,
+            ActivityJdbcSupport activityJdbcSupport,
+            TradeQueryProjectionService tradeQueryProjectionService
+    ) {
         this.jdbcTemplate = jdbcTemplate;
         this.sagaJdbcOperations = activityJdbcSupport.jdbcOperations();
+        this.tradeQueryProjectionService = tradeQueryProjectionService;
     }
 
     public TradeE2eStatusResponse getE2eStatus(String tradeId) {
+        TradeProjectionSummary projection = tradeQueryProjectionService.loadSummary(tradeId);
+        if (projection != null) {
+            return new TradeE2eStatusResponse(projection.sagaStatus(), projection.notificationStatus());
+        }
         try {
             return sagaJdbcOperations.queryForObject(
                     "select saga_status, notification_status from trade_saga where trade_id = ?",
@@ -650,14 +656,34 @@ class TradeTraceQueryService {
     }
 
     public TradeTraceResponse getTrace(String tradeId) {
-        Map<String, Object> execution = jdbcTemplate.queryForMap(
-                "select trade_id, order_id, account_id, currency_pair, execution_status from trade_execution where trade_id = ?",
-                tradeId
-        );
-        Map<String, Object> saga = sagaJdbcOperations.queryForMap(
-                "select * from trade_saga where trade_id = ?",
-                tradeId
-        );
+        TradeProjectionSummary projection = tradeQueryProjectionService.loadSummary(tradeId);
+        Map<String, Object> execution = projection == null
+                ? jdbcTemplate.queryForMap(
+                        "select trade_id, order_id, account_id, currency_pair, execution_status from trade_execution where trade_id = ?",
+                        tradeId
+                )
+                : Map.of(
+                        "trade_id", projection.tradeId(),
+                        "order_id", projection.orderId(),
+                        "account_id", projection.accountId(),
+                        "currency_pair", projection.currencyPair(),
+                        "execution_status", projection.tradeStatus()
+                );
+        Map<String, Object> saga = projection == null
+                ? sagaJdbcOperations.queryForMap(
+                        "select * from trade_saga where trade_id = ?",
+                        tradeId
+                )
+                : Map.of(
+                        "saga_status", projection.sagaStatus(),
+                        "correlation_id", projection.correlationId(),
+                        "cover_status", projection.coverStatus(),
+                        "risk_status", projection.riskStatus(),
+                        "accounting_status", projection.accountingStatus(),
+                        "settlement_status", projection.settlementStatus(),
+                        "notification_status", projection.notificationStatus(),
+                        "compliance_status", projection.complianceStatus()
+                );
 
         String accountId = stringValue(execution.get("account_id"));
         String currency = settlementCurrency(stringValue(execution.get("currency_pair")));
@@ -691,19 +717,21 @@ class TradeTraceQueryService {
                 new ServiceStatusView("Compliance", stringValue(saga.get("compliance_status")))
         );
 
-        List<EventView> events = jdbcTemplate.query(
-                "select source_service, event_type, topic_name, status, created_at, sent_at " +
-                        "from outbox_event where aggregate_id = ? order by created_at",
-                (rs, rowNum) -> new EventView(
-                        rs.getString("source_service"),
-                        rs.getString("event_type"),
-                        rs.getString("topic_name"),
-                        rs.getString("status"),
-                        stringifyTimestamp(rs.getTimestamp("created_at")),
-                        stringifyTimestamp(rs.getTimestamp("sent_at"))
-                ),
-                tradeId
-        );
+        List<EventView> events = tradeQueryProjectionService.journalEnabled()
+                ? tradeQueryProjectionService.loadJournal(tradeId)
+                : jdbcTemplate.query(
+                        "select source_service, event_type, topic_name, status, created_at, sent_at " +
+                                "from outbox_event where aggregate_id = ? order by created_at",
+                        (rs, rowNum) -> new EventView(
+                                rs.getString("source_service"),
+                                rs.getString("event_type"),
+                                rs.getString("topic_name"),
+                                rs.getString("status"),
+                                stringifyTimestamp(rs.getTimestamp("created_at")),
+                                stringifyTimestamp(rs.getTimestamp("sent_at"))
+                        ),
+                        tradeId
+                );
 
         List<ActivityView> activities = sagaJdbcOperations.query(
                 "select service_name, activity_type, activity_status, detail, event_type, topic_name, created_at " +

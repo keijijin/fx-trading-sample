@@ -77,6 +77,14 @@ kafka:
   bootstrap:
     servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
 
+trade:
+  query:
+    projection:
+      enabled: ${TRADE_QUERY_PROJECTION_ENABLED:true}
+  event:
+    journal:
+      enabled: ${TRADE_EVENT_JOURNAL_ENABLED:false}
+
 outbox:
   poll:
     period:

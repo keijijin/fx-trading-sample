@@ -184,3 +184,32 @@ CREATE TABLE IF NOT EXISTS trade_activity (
 );
 
 CREATE INDEX IF NOT EXISTS idx_trade_activity_trade_id ON trade_activity(trade_id);
+
+CREATE TABLE IF NOT EXISTS trade_query_projection (
+    trade_id VARCHAR(64) PRIMARY KEY,
+    order_id VARCHAR(64) NOT NULL,
+    account_id VARCHAR(64) NOT NULL,
+    currency_pair VARCHAR(16) NOT NULL,
+    trade_status VARCHAR(32) NOT NULL,
+    saga_status VARCHAR(32) NOT NULL,
+    correlation_id VARCHAR(128) NOT NULL,
+    cover_status VARCHAR(32) NOT NULL,
+    risk_status VARCHAR(32) NOT NULL,
+    accounting_status VARCHAR(32) NOT NULL,
+    settlement_status VARCHAR(32) NOT NULL,
+    notification_status VARCHAR(32) NOT NULL,
+    compliance_status VARCHAR(32) NOT NULL,
+    updated_at TIMESTAMP NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS trade_event_journal (
+    event_id VARCHAR(64) PRIMARY KEY,
+    trade_id VARCHAR(64) NOT NULL,
+    source_service VARCHAR(64) NOT NULL,
+    event_type VARCHAR(64) NOT NULL,
+    topic_name VARCHAR(128) NOT NULL,
+    status VARCHAR(32) NOT NULL,
+    created_at TIMESTAMP NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_trade_event_journal_trade_id ON trade_event_journal(trade_id, created_at);
