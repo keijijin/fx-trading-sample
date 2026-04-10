@@ -339,6 +339,19 @@ oc apply -f openshift/fx-kafka-connect-cdc.yaml
 
 詳細は `design/problems-and-mitigations.md` §8 を参照。
 
+### 直近の検証結果
+
+OpenShift 上での最終再試験では、次を確認しています。
+
+- **フルスイート**: 全シナリオ PASS
+- **スパイク × スケールアウト**: `1 / 3 / 5 replicas` すべて PASS
+- **CDC**: `shadow.fx-trade-events` への配信確認済み
+
+参照:
+
+- `loadtest/reports/full-and-stress-validation-2026-04-10.md`
+- `loadtest/reports/cdc-shadow-validation-2026-04-10.md`
+
 ## 実装方針
 
 - 約定コアは同期・強整合
