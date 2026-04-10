@@ -207,6 +207,12 @@ spec:
             - log_lock_waits=on
             - -c
             - deadlock_timeout=100ms
+            - -c
+            - wal_level=logical
+            - -c
+            - max_replication_slots=10
+            - -c
+            - max_wal_senders=10
           env:
             - name: POSTGRES_DB
               value: fx_trading
@@ -215,7 +221,7 @@ spec:
             - name: POSTGRES_PASSWORD
               value: fx
             - name: PGDATA
-              value: /tmp/pgdata
+              value: /tmp/pgdata/data
           ports:
             - containerPort: 5432
               name: postgres
@@ -279,6 +285,12 @@ spec:
             - log_lock_waits=on
             - -c
             - deadlock_timeout=100ms
+            - -c
+            - wal_level=logical
+            - -c
+            - max_replication_slots=10
+            - -c
+            - max_wal_senders=10
           env:
             - name: POSTGRES_DB
               value: fx_trading
@@ -287,7 +299,7 @@ spec:
             - name: POSTGRES_PASSWORD
               value: fx
             - name: PGDATA
-              value: /tmp/pgdata
+              value: /tmp/pgdata/data
           ports:
             - containerPort: 5432
               name: postgres

@@ -350,6 +350,13 @@ spec:
         - name: postgres
           image: image-registry.openshift-image-registry.svc:5000/fx-trading-sample/fx-postgres:latest
           imagePullPolicy: Always
+          args:
+            - -c
+            - wal_level=logical
+            - -c
+            - max_replication_slots=10
+            - -c
+            - max_wal_senders=10
           env:
             - name: POSTGRES_DB
               value: fx_trading
@@ -358,7 +365,7 @@ spec:
             - name: POSTGRES_PASSWORD
               value: fx
             - name: PGDATA
-              value: /tmp/pgdata
+              value: /tmp/pgdata/data
           ports:
             - containerPort: 5432
               name: postgres
@@ -466,7 +473,7 @@ spec:
             - name: KAFKA_NUM_PARTITIONS
               value: "12"
             - name: KAFKA_LOG_DIRS
-              value: /tmp/kraft-combined-logs
+              value: /tmp/kraft-combined-logs/data
           ports:
             - containerPort: 9092
               name: client
