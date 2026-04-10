@@ -218,12 +218,42 @@ Grafana 初期ログイン:
 - User: `admin`
 - Password: `admin123`
 
+### 8.5 CDC（Kafka Connect + Debezium）を適用する場合
+
+任意で CDC を検証する場合は、`Kafka Connect` と `Debezium` を追加で適用します。
+
+```bash
+oc apply -f openshift/fx-kafka-connect-cdc.yaml
+oc get pods
+oc get jobs
+```
+
+この manifest は、現時点では **本番 topic ではなく shadow topic** へ配信します。
+
+- `shadow.fx-trade-events`
+
+初期の connector 状態確認例:
+
+```bash
+oc port-forward svc/fx-kafka-connect 18082:8083
+curl -s http://localhost:18082/connectors
+curl -s http://localhost:18082/connectors/fx-core-outbox-connector/status
+```
+
+期待値:
+
+- connector: `RUNNING`
+- task: `RUNNING`
+
+検証レポートは `loadtest/reports/cdc-shadow-validation-2026-04-10.md` を参照。
+
 補足:
 
 - 現在のマニフェストは PoC 用の単一ノード構成です。
 - PostgreSQL と Kafka は OpenShift 上でも同梱デプロイします。
 - アプリケーションイメージ参照先は `fx-trading-sample` プロジェクトの内蔵レジストリです。
 - 他の namespace に展開する場合は、`openshift/fx-trading-stack.yaml` 内の image パスを該当 namespace に変更してください。
+- PostgreSQL / Kafka の PVC 直下に生成される `lost+found` を避けるため、manifest では `PGDATA` と `KAFKA_LOG_DIRS` をサブディレクトリへ向けています。
 
 ## Observability
 
@@ -289,6 +319,12 @@ podman login "$REGISTRY" -u "$USER_NAME" -p "$TOKEN" --tls-verify=false
 ```bash
 oc apply -f openshift/fx-trading-stack.yaml
 oc apply -f openshift/observability-stack.yaml
+```
+
+CDC を使う場合は追加で:
+
+```bash
+oc apply -f openshift/fx-kafka-connect-cdc.yaml
 ```
 
 ## パフォーマンス改善（構造的スケーリング）

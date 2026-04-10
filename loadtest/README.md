@@ -28,6 +28,7 @@
 - `run_test_plan_suite.py` の **baseline** は、現在は **純粋な正常系**です。以前の `BASELINE_FAILURE_PERCENT=5` による失敗混在は除去しました。
 - シナリオ間の Kafka lag 持ち越しを避けるため、`run_test_plan_suite.py` は各シナリオ後に **lag settle 待ち**を行います（既定: `max(fx_kafka_consumer_group_lag) <= 100` まで最大 180 秒待機）。
 - Outbox backlog の Prometheus 指標は実際の scrape 名に合わせて **`fx_outbox_backlog`** を使用します。
+- CDC を併用する場合、現行の `openshift/fx-kafka-connect-cdc.yaml` は **shadow topic** 向けです。polling publisher と並行比較し、本番 topic への full cutover は別段階で行ってください。
 
 ## 事前条件
 
@@ -153,6 +154,66 @@ python loadtest/run_replica_comparison.py \
   - `pod_cpu_sum_cores`
   - `pod_memory_sum_bytes`
   - `pod_restarts`
+
+## CDC shadow 検証
+
+OpenShift 上で `Kafka Connect + Debezium` を適用済みの場合、`outbox_event` の CDC 配信を shadow topic で確認できます。
+
+### 1. Connector 状態確認
+
+```bash
+oc port-forward svc/fx-kafka-connect 18082:8083
+curl -s http://localhost:18082/connectors
+curl -s http://localhost:18082/connectors/fx-core-outbox-connector/status
+```
+
+期待値:
+
+- connector: `RUNNING`
+- task: `RUNNING`
+
+### 2. Trade を 1 件発行
+
+```bash
+curl -s -X POST "http://localhost:18080/api/trades" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "accountId": "ACC-CDC-001",
+    "currencyPair": "USD/JPY",
+    "side": "BUY",
+    "orderAmount": 1000.0,
+    "requestedPrice": 150.25,
+    "simulateCoverFailure": false,
+    "simulateRiskFailure": false,
+    "simulateAccountingFailure": false,
+    "simulateSettlementFailure": false,
+    "simulateNotificationFailure": false,
+    "simulateComplianceFailure": false,
+    "preTradeComplianceFailure": false
+  }'
+```
+
+### 3. shadow topic 確認
+
+```bash
+oc exec pod/fx-kafka-0 -- \
+  /opt/kafka/bin/kafka-console-consumer.sh \
+  --bootstrap-server localhost:9092 \
+  --topic shadow.fx-trade-events \
+  --from-beginning \
+  --max-messages 1 \
+  --timeout-ms 15000
+```
+
+ここで `TradeExecuted` 相当の payload が 1 件確認できれば、
+
+```text
+Business Tx -> outbox_event -> WAL -> Debezium -> Kafka Connect -> shadow topic
+```
+
+の経路が成立しています。
+
+詳細な検証結果は `loadtest/reports/cdc-shadow-validation-2026-04-10.md` を参照してください。
 
 ## 注意
 

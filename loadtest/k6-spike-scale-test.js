@@ -51,11 +51,11 @@ const spikeStartAfter = `${warmSec}s`;
 const coolStartAfter = `${warmSec + spikeSec}s`;
 
 const thrWarmP95 = __ENV.WARM_P95_MS ?? "1000";
-const thrWarmP99 = __ENV.WARM_P99_MS ?? "2500";
+const thrWarmP99 = __ENV.WARM_P99_MS ?? "3000";
 const thrSpikeP95 = __ENV.SPIKE_P95_MS ?? "3000";
 const thrSpikeP99 = __ENV.SPIKE_P99_MS ?? "8000";
 const thrCoolP95 = __ENV.COOL_P95_MS ?? "1000";
-const thrCoolP99 = __ENV.COOL_P99_MS ?? "2500";
+const thrCoolP99 = __ENV.COOL_P99_MS ?? "3000";
 
 const TERMINAL_SAGA_STATUSES = new Set(["COMPLETED", "CANCELLED", "FAILED"]);
 

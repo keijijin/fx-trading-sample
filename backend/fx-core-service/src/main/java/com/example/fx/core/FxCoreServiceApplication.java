@@ -637,10 +637,6 @@ class TradeTraceQueryService {
     }
 
     public TradeE2eStatusResponse getE2eStatus(String tradeId) {
-        TradeProjectionSummary projection = tradeQueryProjectionService.loadSummary(tradeId);
-        if (projection != null) {
-            return new TradeE2eStatusResponse(projection.sagaStatus(), projection.notificationStatus());
-        }
         try {
             return sagaJdbcOperations.queryForObject(
                     "select saga_status, notification_status from trade_saga where trade_id = ?",
@@ -656,34 +652,14 @@ class TradeTraceQueryService {
     }
 
     public TradeTraceResponse getTrace(String tradeId) {
-        TradeProjectionSummary projection = tradeQueryProjectionService.loadSummary(tradeId);
-        Map<String, Object> execution = projection == null
-                ? jdbcTemplate.queryForMap(
-                        "select trade_id, order_id, account_id, currency_pair, execution_status from trade_execution where trade_id = ?",
-                        tradeId
-                )
-                : Map.of(
-                        "trade_id", projection.tradeId(),
-                        "order_id", projection.orderId(),
-                        "account_id", projection.accountId(),
-                        "currency_pair", projection.currencyPair(),
-                        "execution_status", projection.tradeStatus()
-                );
-        Map<String, Object> saga = projection == null
-                ? sagaJdbcOperations.queryForMap(
-                        "select * from trade_saga where trade_id = ?",
-                        tradeId
-                )
-                : Map.of(
-                        "saga_status", projection.sagaStatus(),
-                        "correlation_id", projection.correlationId(),
-                        "cover_status", projection.coverStatus(),
-                        "risk_status", projection.riskStatus(),
-                        "accounting_status", projection.accountingStatus(),
-                        "settlement_status", projection.settlementStatus(),
-                        "notification_status", projection.notificationStatus(),
-                        "compliance_status", projection.complianceStatus()
-                );
+        Map<String, Object> execution = jdbcTemplate.queryForMap(
+                "select trade_id, order_id, account_id, currency_pair, execution_status from trade_execution where trade_id = ?",
+                tradeId
+        );
+        Map<String, Object> saga = sagaJdbcOperations.queryForMap(
+                "select * from trade_saga where trade_id = ?",
+                tradeId
+        );
 
         String accountId = stringValue(execution.get("account_id"));
         String currency = settlementCurrency(stringValue(execution.get("currency_pair")));
