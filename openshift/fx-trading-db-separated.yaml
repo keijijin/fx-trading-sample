@@ -202,7 +202,7 @@ spec:
           imagePullPolicy: Always
           args:
             - -c
-            - max_connections=160
+            - max_connections=240
             - -c
             - log_lock_waits=on
             - -c
@@ -242,10 +242,10 @@ spec:
             failureThreshold: 3
           resources:
             requests:
-              cpu: "500m"
+              cpu: "1"
               memory: "768Mi"
             limits:
-              cpu: "1"
+              cpu: "2"
               memory: "1Gi"
           volumeMounts:
             - name: initdb
@@ -280,7 +280,7 @@ spec:
           imagePullPolicy: Always
           args:
             - -c
-            - max_connections=300
+            - max_connections=400
             - -c
             - log_lock_waits=on
             - -c
@@ -320,11 +320,11 @@ spec:
             failureThreshold: 3
           resources:
             requests:
-              cpu: "500m"
-              memory: "1Gi"
-            limits:
-              cpu: "1500m"
+              cpu: "2"
               memory: "2Gi"
+            limits:
+              cpu: "5"
+              memory: "4Gi"
           volumeMounts:
             - name: initdb
               mountPath: /docker-entrypoint-initdb.d
@@ -749,9 +749,9 @@ spec:
             - name: DB_PASSWORD
               value: fx
             - name: DB_POOL_MAX_SIZE
-              value: "8"
+              value: "16"
             - name: DB_POOL_MIN_IDLE
-              value: "2"
+              value: "4"
             - name: DB_POOL_CONNECTION_TIMEOUT_MS
               value: "5000"
             - name: DB_POOL_IDLE_TIMEOUT_MS
@@ -783,7 +783,7 @@ spec:
             - name: SAGA_DB_PASSWORD
               value: fx
             - name: ACTIVITY_DB_POOL_MAX_SIZE
-              value: "10"
+              value: "8"
             - name: SAGA_DB_POOL_MAX_SIZE
               value: "5"
           startupProbe:
@@ -841,7 +841,7 @@ spec:
             - name: SPRING_DATASOURCE_HIKARI_MAXIMUM_POOL_SIZE
               value: "8"
             - name: SPRING_DATASOURCE_HIKARI_MINIMUM_IDLE
-              value: "2"
+              value: "3"
             - name: OTEL_EXPORTER_OTLP_ENDPOINT
               value: http://fx-tempo:4318/v1/traces
             - name: LOKI_URL
