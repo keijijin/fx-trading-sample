@@ -6,7 +6,7 @@ data:
   connector-config.json: |
     {
       "connector.class": "io.debezium.connector.postgresql.PostgresConnector",
-      "database.hostname": "fx-postgres",
+      "database.hostname": "fx-core-db",
       "database.port": "5432",
       "database.user": "fx",
       "database.password": "fx",
