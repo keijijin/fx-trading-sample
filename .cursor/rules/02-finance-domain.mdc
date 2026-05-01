@@ -1,0 +1,39 @@
+---
+description: 金融ドメインの整合性・トランザクション・監査・明示的エラー処理
+alwaysApply: true
+---
+
+# FINANCIAL DOMAIN RULES
+
+## 1. CONSISTENCY FIRST
+- Always prioritize data consistency over convenience
+- Never suggest non-transactional shortcuts
+
+---
+
+## 2. TRANSACTION SAFETY
+- Clearly define transaction boundaries
+- Never mix DB update and external calls without design explanation
+- Prefer:
+  - Outbox pattern
+  - Idempotency
+
+---
+
+## 3. AUDITABILITY
+- Ensure all operations are traceable
+- Include:
+  - timestamp
+  - transaction id
+  - correlation id
+
+---
+
+## 4. NO SILENT FAILURE
+- Always handle errors explicitly
+- Never swallow exceptions
+
+---
+
+## 5. DETERMINISTIC DESIGN
+- Avoid non-deterministic logic in core flows

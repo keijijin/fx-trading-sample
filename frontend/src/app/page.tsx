@@ -192,9 +192,13 @@ export default function Home() {
         const response = await fetch(`/api/trades/${trade.tradeId}/trace`, {
           cache: "no-store",
         });
-        const payload = await response.json();
+        const payload = await response.json().catch(() => ({}));
         if (!response.ok) {
-          throw new Error(payload?.message ?? "trace fetch failed");
+          const msg =
+            (typeof payload?.message === "string" && payload.message) ||
+            (typeof payload?.error === "string" && payload.error) ||
+            `trace fetch failed (HTTP ${response.status})`;
+          throw new Error(msg);
         }
         if (cancelled) {
           return;

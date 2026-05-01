@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 # Push one application image to the OpenShift internal registry.
 # Prerequisite: image exists locally as backend-<name>:latest (see README OpenShift section).
+# クラスタが amd64 のとき、arm64 ホストでビルドしたイメージは Pod で Exec format error になる。
+# 一括ビルドは ./scripts/build-openshift-images.sh（既定 linux/amd64）を使うこと。
 # Registry URL MUST use --public (plain "oc registry info" can be empty and breaks the tag).
 set -euo pipefail
 

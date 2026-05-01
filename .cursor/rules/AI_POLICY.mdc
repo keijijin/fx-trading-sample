@@ -1,0 +1,12 @@
+---
+description: AI利用方針（機密非露出・レビュー前提・補助ツールとしての利用）
+alwaysApply: true
+---
+
+# AI Usage Policy
+
+This project uses AI under strict enterprise security rules.
+
+- No sensitive data exposure
+- All outputs must be reviewed
+- AI is assistive, not authoritative

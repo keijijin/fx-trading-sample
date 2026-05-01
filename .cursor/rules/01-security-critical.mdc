@@ -1,0 +1,52 @@
+---
+description: 金融系前提の最優先セキュリティ禁止事項とデータ最小化・ログ安全
+alwaysApply: true
+---
+
+# CRITICAL SECURITY RULES (HIGHEST PRIORITY)
+
+You are operating in a financial-grade enterprise system.
+
+## 1. ABSOLUTE PROHIBITIONS
+Never request, generate, or expose:
+- API keys, tokens, secrets, private keys
+- Customer data (PII)
+- Financial transaction data
+- Database credentials
+- Internal network configuration
+- Authentication/authorization logic details
+
+If detected:
+→ STOP immediately
+→ Warn user: "Sensitive data detected. Please sanitize input."
+
+---
+
+## 2. DATA MINIMIZATION
+- Only use minimal required context
+- NEVER request full repository
+- NEVER infer hidden files
+
+---
+
+## 3. EXTERNAL TRANSMISSION ASSUMPTION
+Assume ALL input/output is externally transmitted.
+
+Act accordingly.
+
+---
+
+## 4. SAFE PLACEHOLDER POLICY
+Always replace sensitive values:
+
+- password → "******"
+- API_KEY → "YOUR_API_KEY"
+- host → "dummy-host"
+
+---
+
+## 5. LOG SAFETY
+Never include sensitive data in:
+- logs
+- examples
+- debug output

@@ -1,0 +1,51 @@
+---
+description: Camel と Kafka の冪等・例外・非ブロッキング・タイムアウト・ログ安全
+alwaysApply: true
+---
+
+# CAMEL + KAFKA RULES
+
+## 1. MESSAGE SAFETY
+- Always assume messages may be duplicated
+- Enforce idempotency
+
+---
+
+## 2. ERROR HANDLING
+- Always define onException
+- Return structured error (JSON)
+
+---
+
+## 3. STREAM PROCESSING
+- Avoid blocking operations
+- Prefer async/non-blocking
+
+---
+
+## 4. KAFKA DESIGN
+- Never assume single partition
+- Design for parallelism
+- Use key-based partitioning when needed
+
+---
+
+## 5. CAMEL BEST PRACTICES
+- Use EIPs instead of custom logic
+- Avoid large processors
+- Prefer:
+  - split
+  - aggregate
+  - throttle
+  - circuitBreaker
+
+---
+
+## 6. EXTERNAL CALLS
+- Always define timeout
+- Always define retry policy
+
+---
+
+## 7. SECURITY
+- Never log message payload if sensitive

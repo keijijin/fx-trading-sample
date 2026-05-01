@@ -10,7 +10,8 @@ COPY package.json package-lock.json ./
 RUN npm ci
 
 COPY . .
-RUN npm run build
+# Turbopack は linux/amd64 クロスビルド（QEMU）で不安定なため、コンテナ内は webpack を使用
+RUN npm run build -- --webpack
 
 EXPOSE 3000
 

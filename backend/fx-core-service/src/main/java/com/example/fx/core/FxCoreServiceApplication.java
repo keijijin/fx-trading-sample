@@ -18,6 +18,7 @@ import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.dao.EmptyResultDataAccessException;
+import org.springframework.dao.IncorrectResultSizeDataAccessException;
 import org.springframework.http.HttpStatus;
 import org.springframework.jdbc.core.ConnectionCallback;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -38,6 +39,7 @@ import java.sql.PreparedStatement;
 import java.sql.Timestamp;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -656,10 +658,13 @@ class TradeTraceQueryService {
                 "select trade_id, order_id, account_id, currency_pair, execution_status from trade_execution where trade_id = ?",
                 tradeId
         );
-        Map<String, Object> saga = sagaJdbcOperations.queryForMap(
-                "select * from trade_saga where trade_id = ?",
-                tradeId
-        );
+        Map<String, Object> saga;
+        try {
+            saga = sagaJdbcOperations.queryForMap("select * from trade_saga where trade_id = ?", tradeId);
+        } catch (IncorrectResultSizeDataAccessException ex) {
+            // trade-saga-service が TradeExecuted 後に seed するまでの短い窓で 0 行になり得る
+            saga = pendingSagaRow();
+        }
 
         String accountId = stringValue(execution.get("account_id"));
         String currency = settlementCurrency(stringValue(execution.get("currency_pair")));
@@ -753,6 +758,19 @@ class TradeTraceQueryService {
 
     private String stringValue(Object value) {
         return value == null ? null : value.toString();
+    }
+
+    private static Map<String, Object> pendingSagaRow() {
+        Map<String, Object> row = new HashMap<>();
+        row.put("saga_status", "PENDING");
+        row.put("correlation_id", null);
+        row.put("cover_status", "PENDING");
+        row.put("risk_status", "PENDING");
+        row.put("accounting_status", "PENDING");
+        row.put("settlement_status", "PENDING");
+        row.put("notification_status", "PENDING");
+        row.put("compliance_status", "PENDING");
+        return row;
     }
 }
 

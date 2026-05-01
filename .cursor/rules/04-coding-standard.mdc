@@ -1,0 +1,35 @@
+---
+description: 可読性・入力検証・null安全・例外メッセージ・代表的脆弱性対策
+alwaysApply: true
+---
+
+# CODING STANDARD RULES
+
+## 1. READABILITY
+- Write clear, maintainable code
+- Avoid over-engineering
+
+---
+
+## 2. VALIDATION
+- Always validate input
+- Never trust external data
+
+---
+
+## 3. NULL SAFETY
+- Avoid NullPointerException
+- Use Optional or checks
+
+---
+
+## 4. EXCEPTION HANDLING
+- Always provide meaningful error messages
+
+---
+
+## 5. SECURITY
+- Prevent:
+  - SQL Injection
+  - XSS
+  - Unsafe deserialization

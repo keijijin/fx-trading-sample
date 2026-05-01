@@ -162,21 +162,19 @@ oc apply -f openshift/project.yaml
 oc project fx-trading-sample
 ```
 
-### 4. OpenShift 内蔵レジストリへイメージを push
+### 4. OpenShift 向けコンテナイメージのビルドと push
+
+OpenShift のワーカーは多くが **linux/amd64** です。Apple Silicon など **arm64 のホスト**でそのまま `podman build` すると、デプロイ後に Pod が **Exec format error** で起動しません。次のスクリプトは既定で **`--platform linux/amd64`** を付けて `fx-postgres` / `fx-kafka` / 全バックエンド / `frontend` をビルドします。
 
 ```bash
-REGISTRY="$(oc registry info --public)"
-NAMESPACE="fx-trading-sample"
-USER_NAME="$(oc whoami)"
-TOKEN="$(oc whoami -t)"
-
-podman login "$REGISTRY" -u "$USER_NAME" -p "$TOKEN" --tls-verify=false
-
-for image in fx-core-service trade-saga-service cover-service risk-service accounting-service settlement-service notification-service compliance-service frontend; do
-  podman tag "backend-${image}:latest" "$REGISTRY/$NAMESPACE/${image}:latest"
-  podman push --tls-verify=false "$REGISTRY/$NAMESPACE/${image}:latest"
-done
+# リポジトリルートで
+./scripts/build-openshift-images.sh
+./scripts/push-openshift-images.sh
 ```
+
+別アーキテクチャのクラスタ向けに上書きする場合のみ、例: `CONTAINER_PLATFORM=linux/arm64 ./scripts/build-openshift-images.sh`
+
+個別サービスだけ push する場合は従来どおり `NAMESPACE=fx-trading-sample ./scripts/push-openshift-image.sh <image-name>`（事前に同じプラットフォームでビルド済みの `backend-<name>:latest` が必要）。
 
 ### 5. OpenShift マニフェストを適用
 
@@ -299,19 +297,11 @@ OpenShift 向けに以下を実装しています。
 cd backend
 mvn -DskipTests package
 
-cd ../frontend
-npm install
-npm run build
-
 cd ..
 oc project fx-trading-sample
 
-REGISTRY="$(oc registry info --public)"
-NAMESPACE="fx-trading-sample"
-USER_NAME="$(oc whoami)"
-TOKEN="$(oc whoami -t)"
-
-podman login "$REGISTRY" -u "$USER_NAME" -p "$TOKEN" --tls-verify=false
+./scripts/build-openshift-images.sh
+./scripts/push-openshift-images.sh
 ```
 
 アプリイメージ push の後に以下を適用します。

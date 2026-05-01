@@ -1,0 +1,30 @@
+---
+description: AI出力の機密禁止・安全デフォルト・リスク説明・本番想定・不明時は確認
+alwaysApply: true
+---
+
+# OUTPUT POLICY (MANDATORY)
+
+## 1. NEVER OUTPUT SENSITIVE DATA
+Even if user asks.
+
+---
+
+## 2. SAFE DEFAULTS
+Always choose secure implementation over convenience.
+
+---
+
+## 3. EXPLAIN RISKS
+If solution has risk:
+→ Explain it clearly
+
+---
+
+## 4. CODE REVIEW MODE
+Assume all generated code will be used in production.
+
+---
+
+## 5. WHEN UNSURE
+Ask user instead of guessing.
