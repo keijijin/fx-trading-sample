@@ -1,0 +1,104 @@
+{
+  "namespace": "fx-trading-camel422",
+  "version": {
+    "camel": "4.22.2",
+    "springBoot": "4.1.1",
+    "java": "25"
+  },
+  "publicChecks": {
+    "apiHealth": 200,
+    "frontend": 200
+  },
+  "readyStateTrade": {
+    "sagaStatus": "COMPLETED",
+    "notificationStatus": "COMPLETED"
+  },
+  "startupTrade": "PENDING; accounting step unresolved during rollout; further analysis required",
+  "compensationTrade": {
+    "sagaStatus": "CANCELLED",
+    "notificationStatus": "COMPENSATED"
+  },
+  "frontendApiProxy": {
+    "http": 200,
+    "sagaStatus": "COMPLETED"
+  },
+  "runtimeImageChecks": [
+    {
+      "image": "accounting-service",
+      "digestMatchesBuild": true
+    },
+    {
+      "image": "compliance-service",
+      "digestMatchesBuild": true
+    },
+    {
+      "image": "cover-service",
+      "digestMatchesBuild": true
+    },
+    {
+      "image": "fx-postgres",
+      "digestMatchesBuild": true
+    },
+    {
+      "image": "fx-postgres",
+      "digestMatchesBuild": true
+    },
+    {
+      "image": "fx-postgres",
+      "digestMatchesBuild": true
+    },
+    {
+      "image": "fx-core-service",
+      "digestMatchesBuild": true
+    },
+    {
+      "image": "fx-postgres",
+      "digestMatchesBuild": true
+    },
+    {
+      "image": "frontend",
+      "digestMatchesBuild": true
+    },
+    {
+      "image": "fx-kafka",
+      "digestMatchesBuild": true
+    },
+    {
+      "image": "fx-postgres",
+      "digestMatchesBuild": true
+    },
+    {
+      "image": "fx-postgres",
+      "digestMatchesBuild": true
+    },
+    {
+      "image": "fx-postgres",
+      "digestMatchesBuild": true
+    },
+    {
+      "image": "fx-postgres",
+      "digestMatchesBuild": true
+    },
+    {
+      "image": "notification-service",
+      "digestMatchesBuild": true
+    },
+    {
+      "image": "risk-service",
+      "digestMatchesBuild": true
+    },
+    {
+      "image": "settlement-service",
+      "digestMatchesBuild": true
+    },
+    {
+      "image": "trade-saga-service",
+      "digestMatchesBuild": true
+    }
+  ],
+  "trustedTlsHealthCheck": 200,
+  "prometheus": {
+    "activeTargets": 8,
+    "upTargets": 8
+  }
+}

@@ -362,3 +362,7 @@ OpenShift 上での最終再試験では、次を確認しています。
 - rootless Podman で Ryuk が起動しない管理されたローカル環境では、必要に応じて `TESTCONTAINERS_RYUK_DISABLED=true` を指定します。CIでは原則としてRyukを有効にしてください。異常終了時には当該テストが起動したコンテナの残留を確認します。
 - 各サービスの起動用 JAR は `*-exec.jar` です。通常の JAR は結合試験用の依存としても使用します。
 - runtime image は Eclipse Temurin 25、実行ユーザーは185です。以前の UBI runtime と配布元・OSが異なるため、製品サポート・脆弱性管理・社内image基準への適合は配備前に確認してください。
+
+## Camel 4.22 の隔離OpenShift配備
+
+[配備資材と再実行手順](openshift/camel422/README.md) / [OpenShift実行レポート](CAMEL-4.22-OPENSHIFT-REPORT.md)。実際のRouteは対象namespaceで `oc get route` により確認する。クラスタ固有URL・Secret値はGitへ含めない。

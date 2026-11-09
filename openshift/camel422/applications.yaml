@@ -1,0 +1,2626 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: fx-postgres-init
+  namespace: fx-trading-camel422
+  labels:
+    app.kubernetes.io/part-of: fx-trading-camel422
+data:
+  init.sql: "CREATE TABLE IF NOT EXISTS trade_order (\n    order_id VARCHAR(64) PRIMARY\
+    \ KEY,\n    account_id VARCHAR(64) NOT NULL,\n    currency_pair VARCHAR(16) NOT\
+    \ NULL,\n    side VARCHAR(8) NOT NULL,\n    order_type VARCHAR(16) NOT NULL,\n\
+    \    order_amount DECIMAL(18,2) NOT NULL,\n    order_status VARCHAR(32) NOT NULL,\n\
+    \    created_at TIMESTAMP NOT NULL,\n    updated_at TIMESTAMP NOT NULL,\n    version_no\
+    \ INTEGER NOT NULL DEFAULT 0\n);\n\nCREATE TABLE IF NOT EXISTS trade_execution\
+    \ (\n    trade_id VARCHAR(64) PRIMARY KEY,\n    order_id VARCHAR(64) NOT NULL,\n\
+    \    account_id VARCHAR(64) NOT NULL,\n    currency_pair VARCHAR(16) NOT NULL,\n\
+    \    side VARCHAR(8) NOT NULL,\n    executed_price DECIMAL(18,8) NOT NULL,\n \
+    \   executed_amount DECIMAL(18,2) NOT NULL,\n    execution_status VARCHAR(32)\
+    \ NOT NULL,\n    executed_at TIMESTAMP NOT NULL,\n    version_no INTEGER NOT NULL\
+    \ DEFAULT 0,\n    CONSTRAINT uk_trade_execution_order UNIQUE (order_id)\n);\n\n\
+    CREATE TABLE IF NOT EXISTS account_balance (\n    account_id VARCHAR(64) NOT NULL,\n\
+    \    currency VARCHAR(3) NOT NULL,\n    available_balance DECIMAL(18,2) NOT NULL,\n\
+    \    held_balance DECIMAL(18,2) NOT NULL,\n    updated_at TIMESTAMP NOT NULL,\n\
+    \    version_no INTEGER NOT NULL DEFAULT 0,\n    PRIMARY KEY (account_id, currency)\n\
+    );\n\nCREATE TABLE IF NOT EXISTS account_balance_bucket (\n    account_id VARCHAR(64)\
+    \ NOT NULL,\n    currency VARCHAR(3) NOT NULL,\n    bucket_no INTEGER NOT NULL,\n\
+    \    available_balance DECIMAL(18,2) NOT NULL,\n    held_balance DECIMAL(18,2)\
+    \ NOT NULL,\n    updated_at TIMESTAMP NOT NULL,\n    version_no INTEGER NOT NULL\
+    \ DEFAULT 0,\n    PRIMARY KEY (account_id, currency, bucket_no)\n);\n\nCREATE\
+    \ TABLE IF NOT EXISTS balance_hold (\n    hold_id VARCHAR(64) PRIMARY KEY,\n \
+    \   trade_id VARCHAR(64) NOT NULL,\n    account_id VARCHAR(64) NOT NULL,\n   \
+    \ bucket_no INTEGER NOT NULL DEFAULT 0,\n    hold_amount DECIMAL(18,2) NOT NULL,\n\
+    \    hold_status VARCHAR(32) NOT NULL,\n    created_at TIMESTAMP NOT NULL,\n \
+    \   updated_at TIMESTAMP NOT NULL\n);\n\nCREATE TABLE IF NOT EXISTS fx_position\
+    \ (\n    position_id VARCHAR(64) PRIMARY KEY,\n    account_id VARCHAR(64) NOT\
+    \ NULL,\n    currency_pair VARCHAR(16) NOT NULL,\n    net_amount DECIMAL(18,2)\
+    \ NOT NULL,\n    average_price DECIMAL(18,8) NOT NULL,\n    updated_at TIMESTAMP\
+    \ NOT NULL,\n    version_no INTEGER NOT NULL DEFAULT 0\n);\n\nCREATE TABLE IF\
+    \ NOT EXISTS trade_saga (\n    trade_id VARCHAR(64) PRIMARY KEY,\n    order_id\
+    \ VARCHAR(64) NOT NULL,\n    saga_status VARCHAR(32) NOT NULL,\n    cover_status\
+    \ VARCHAR(32) NOT NULL,\n    risk_status VARCHAR(32) NOT NULL,\n    accounting_status\
+    \ VARCHAR(32) NOT NULL,\n    settlement_status VARCHAR(32) NOT NULL,\n    notification_status\
+    \ VARCHAR(32) NOT NULL,\n    compliance_status VARCHAR(32) NOT NULL,\n    cover_cancel_requested\
+    \ BOOLEAN NOT NULL DEFAULT FALSE,\n    risk_cancel_requested BOOLEAN NOT NULL\
+    \ DEFAULT FALSE,\n    accounting_cancel_requested BOOLEAN NOT NULL DEFAULT FALSE,\n\
+    \    settlement_cancel_requested BOOLEAN NOT NULL DEFAULT FALSE,\n    correlation_id\
+    \ VARCHAR(128) NOT NULL,\n    cover_completed_at TIMESTAMP NULL,\n    risk_completed_at\
+    \ TIMESTAMP NULL,\n    accounting_completed_at TIMESTAMP NULL,\n    settlement_requested_at\
+    \ TIMESTAMP NULL,\n    settlement_completed_at TIMESTAMP NULL,\n    notification_completed_at\
+    \ TIMESTAMP NULL,\n    compliance_completed_at TIMESTAMP NULL,\n    created_at\
+    \ TIMESTAMP NOT NULL,\n    updated_at TIMESTAMP NOT NULL,\n    version_no INTEGER\
+    \ NOT NULL DEFAULT 0\n);\n\nCREATE TABLE IF NOT EXISTS outbox_event (\n    event_id\
+    \ VARCHAR(64) PRIMARY KEY,\n    aggregate_type VARCHAR(64) NOT NULL,\n    aggregate_id\
+    \ VARCHAR(64) NOT NULL,\n    event_type VARCHAR(64) NOT NULL,\n    topic_name\
+    \ VARCHAR(128) NOT NULL,\n    message_key VARCHAR(128) NOT NULL,\n    payload\
+    \ TEXT NOT NULL,\n    status VARCHAR(16) NOT NULL,\n    retry_count INTEGER NOT\
+    \ NULL DEFAULT 0,\n    next_retry_at TIMESTAMP NULL,\n    correlation_id VARCHAR(128)\
+    \ NOT NULL,\n    source_service VARCHAR(64) NOT NULL,\n    created_at TIMESTAMP\
+    \ NOT NULL,\n    sent_at TIMESTAMP NULL,\n    last_error_message VARCHAR(1024),\n\
+    \    version_no INTEGER NOT NULL DEFAULT 0\n);\n\nCREATE INDEX IF NOT EXISTS idx_outbox_event_aggregate_id\
+    \ ON outbox_event(aggregate_id);\nCREATE INDEX IF NOT EXISTS idx_outbox_event_poll\
+    \ ON outbox_event(source_service, status, created_at)\n    WHERE status IN ('NEW',\
+    \ 'RETRY');\n\nCREATE TABLE IF NOT EXISTS processed_message (\n    consumer_name\
+    \ VARCHAR(64) NOT NULL,\n    event_id VARCHAR(64) NOT NULL,\n    processed_at\
+    \ TIMESTAMP NOT NULL,\n    PRIMARY KEY (consumer_name, event_id)\n);\n\nCREATE\
+    \ TABLE IF NOT EXISTS cover_trade (\n    cover_trade_id VARCHAR(64) PRIMARY KEY,\n\
+    \    trade_id VARCHAR(64) NOT NULL,\n    cover_status VARCHAR(32) NOT NULL,\n\
+    \    created_at TIMESTAMP NOT NULL,\n    updated_at TIMESTAMP NOT NULL\n);\n\n\
+    CREATE TABLE IF NOT EXISTS risk_record (\n    risk_record_id VARCHAR(64) PRIMARY\
+    \ KEY,\n    trade_id VARCHAR(64) NOT NULL,\n    risk_status VARCHAR(32) NOT NULL,\n\
+    \    created_at TIMESTAMP NOT NULL,\n    updated_at TIMESTAMP NOT NULL\n);\n\n\
+    CREATE TABLE IF NOT EXISTS accounting_entry (\n    accounting_entry_id VARCHAR(64)\
+    \ PRIMARY KEY,\n    trade_id VARCHAR(64) NOT NULL,\n    accounting_status VARCHAR(32)\
+    \ NOT NULL,\n    created_at TIMESTAMP NOT NULL,\n    updated_at TIMESTAMP NOT\
+    \ NULL\n);\n\nCREATE TABLE IF NOT EXISTS settlement_record (\n    settlement_record_id\
+    \ VARCHAR(64) PRIMARY KEY,\n    trade_id VARCHAR(64) NOT NULL,\n    settlement_status\
+    \ VARCHAR(32) NOT NULL,\n    created_at TIMESTAMP NOT NULL,\n    updated_at TIMESTAMP\
+    \ NOT NULL\n);\n\nCREATE TABLE IF NOT EXISTS notification_record (\n    notification_id\
+    \ VARCHAR(64) PRIMARY KEY,\n    trade_id VARCHAR(64) NOT NULL,\n    notification_type\
+    \ VARCHAR(64) NOT NULL,\n    notification_status VARCHAR(32) NOT NULL,\n    created_at\
+    \ TIMESTAMP NOT NULL\n);\n\nCREATE TABLE IF NOT EXISTS compliance_record (\n \
+    \   compliance_id VARCHAR(64) PRIMARY KEY,\n    trade_id VARCHAR(64) NOT NULL,\n\
+    \    compliance_status VARCHAR(32) NOT NULL,\n    created_at TIMESTAMP NOT NULL\n\
+    );\n\nCREATE TABLE IF NOT EXISTS trade_activity (\n    activity_id VARCHAR(64)\
+    \ PRIMARY KEY,\n    trade_id VARCHAR(64) NOT NULL,\n    service_name VARCHAR(64)\
+    \ NOT NULL,\n    activity_type VARCHAR(64) NOT NULL,\n    activity_status VARCHAR(64)\
+    \ NOT NULL,\n    detail VARCHAR(1024) NOT NULL,\n    event_type VARCHAR(64),\n\
+    \    topic_name VARCHAR(128),\n    created_at TIMESTAMP NOT NULL\n);\n\nCREATE\
+    \ INDEX IF NOT EXISTS idx_trade_activity_trade_id ON trade_activity(trade_id);\n\
+    \nCREATE TABLE IF NOT EXISTS trade_query_projection (\n    trade_id VARCHAR(64)\
+    \ PRIMARY KEY,\n    order_id VARCHAR(64) NOT NULL,\n    account_id VARCHAR(64)\
+    \ NOT NULL,\n    currency_pair VARCHAR(16) NOT NULL,\n    trade_status VARCHAR(32)\
+    \ NOT NULL,\n    saga_status VARCHAR(32) NOT NULL,\n    correlation_id VARCHAR(128)\
+    \ NOT NULL,\n    cover_status VARCHAR(32) NOT NULL,\n    risk_status VARCHAR(32)\
+    \ NOT NULL,\n    accounting_status VARCHAR(32) NOT NULL,\n    settlement_status\
+    \ VARCHAR(32) NOT NULL,\n    notification_status VARCHAR(32) NOT NULL,\n    compliance_status\
+    \ VARCHAR(32) NOT NULL,\n    updated_at TIMESTAMP NOT NULL\n);\n\nCREATE TABLE\
+    \ IF NOT EXISTS trade_event_journal (\n    event_id VARCHAR(64) PRIMARY KEY,\n\
+    \    trade_id VARCHAR(64) NOT NULL,\n    source_service VARCHAR(64) NOT NULL,\n\
+    \    event_type VARCHAR(64) NOT NULL,\n    topic_name VARCHAR(128) NOT NULL,\n\
+    \    status VARCHAR(32) NOT NULL,\n    created_at TIMESTAMP NOT NULL\n);\n\nCREATE\
+    \ INDEX IF NOT EXISTS idx_trade_event_journal_trade_id ON trade_event_journal(trade_id,\
+    \ created_at);\n"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: fx-kafka
+  namespace: fx-trading-camel422
+  labels:
+    app.kubernetes.io/part-of: fx-trading-camel422
+spec:
+  selector:
+    app: fx-kafka
+  ports:
+  - name: client
+    port: 9092
+    targetPort: 9092
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: fx-kafka-headless
+  namespace: fx-trading-camel422
+  labels:
+    app.kubernetes.io/part-of: fx-trading-camel422
+spec:
+  clusterIP: None
+  publishNotReadyAddresses: true
+  selector:
+    app: fx-kafka
+  ports:
+  - name: client
+    port: 9092
+    targetPort: 9092
+  - name: controller
+    port: 9093
+    targetPort: 9093
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: fx-core-service
+  namespace: fx-trading-camel422
+  labels:
+    app.kubernetes.io/part-of: fx-trading-camel422
+spec:
+  selector:
+    app: fx-core-service
+  ports:
+  - name: http
+    port: 8080
+    targetPort: 8080
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: trade-saga-service
+  namespace: fx-trading-camel422
+  labels:
+    app.kubernetes.io/part-of: fx-trading-camel422
+spec:
+  selector:
+    app: trade-saga-service
+  ports:
+  - name: http
+    port: 8081
+    targetPort: 8081
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: cover-service
+  namespace: fx-trading-camel422
+  labels:
+    app.kubernetes.io/part-of: fx-trading-camel422
+spec:
+  selector:
+    app: cover-service
+  ports:
+  - name: http
+    port: 8082
+    targetPort: 8082
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: risk-service
+  namespace: fx-trading-camel422
+  labels:
+    app.kubernetes.io/part-of: fx-trading-camel422
+spec:
+  selector:
+    app: risk-service
+  ports:
+  - name: http
+    port: 8083
+    targetPort: 8083
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: accounting-service
+  namespace: fx-trading-camel422
+  labels:
+    app.kubernetes.io/part-of: fx-trading-camel422
+spec:
+  selector:
+    app: accounting-service
+  ports:
+  - name: http
+    port: 8084
+    targetPort: 8084
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: settlement-service
+  namespace: fx-trading-camel422
+  labels:
+    app.kubernetes.io/part-of: fx-trading-camel422
+spec:
+  selector:
+    app: settlement-service
+  ports:
+  - name: http
+    port: 8085
+    targetPort: 8085
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: notification-service
+  namespace: fx-trading-camel422
+  labels:
+    app.kubernetes.io/part-of: fx-trading-camel422
+spec:
+  selector:
+    app: notification-service
+  ports:
+  - name: http
+    port: 8086
+    targetPort: 8086
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: compliance-service
+  namespace: fx-trading-camel422
+  labels:
+    app.kubernetes.io/part-of: fx-trading-camel422
+spec:
+  selector:
+    app: compliance-service
+  ports:
+  - name: http
+    port: 8087
+    targetPort: 8087
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: fx-frontend
+  namespace: fx-trading-camel422
+  labels:
+    app.kubernetes.io/part-of: fx-trading-camel422
+spec:
+  selector:
+    app: fx-frontend
+  ports:
+  - name: http
+    port: 3000
+    targetPort: 3000
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: fx-kafka
+  namespace: fx-trading-camel422
+  labels:
+    app.kubernetes.io/part-of: fx-trading-camel422
+spec:
+  serviceName: fx-kafka-headless
+  replicas: 1
+  selector:
+    matchLabels:
+      app: fx-kafka
+  template:
+    metadata:
+      labels:
+        app: fx-kafka
+    spec:
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 100
+            podAffinityTerm:
+              topologyKey: kubernetes.io/hostname
+              labelSelector:
+                matchLabels:
+                  app: fx-kafka
+      topologySpreadConstraints:
+      - maxSkew: 1
+        topologyKey: kubernetes.io/hostname
+        whenUnsatisfiable: ScheduleAnyway
+        labelSelector:
+          matchLabels:
+            app: fx-kafka
+      containers:
+      - name: kafka
+        image: image-registry.openshift-image-registry.svc:5000/fx-trading-camel422/fx-kafka:camel422
+        imagePullPolicy: Always
+        command:
+        - /bin/bash
+        - -ec
+        - 'export KAFKA_NODE_ID=0
+
+          export KAFKA_ADVERTISED_LISTENERS="PLAINTEXT://fx-kafka-0.fx-kafka-headless.fx-trading-camel422.svc.cluster.local:9092"
+
+          export KAFKA_CONTROLLER_QUORUM_VOTERS="0@fx-kafka-0.fx-kafka-headless.fx-trading-camel422.svc.cluster.local:9093"
+
+          exec /etc/kafka/docker/run
+
+          '
+        env:
+        - name: KAFKA_PROCESS_ROLES
+          value: broker,controller
+        - name: KAFKA_LISTENERS
+          value: PLAINTEXT://:9092,CONTROLLER://:9093
+        - name: KAFKA_CONTROLLER_LISTENER_NAMES
+          value: CONTROLLER
+        - name: KAFKA_LISTENER_SECURITY_PROTOCOL_MAP
+          value: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT
+        - name: KAFKA_INTER_BROKER_LISTENER_NAME
+          value: PLAINTEXT
+        - name: KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR
+          value: '1'
+        - name: KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR
+          value: '1'
+        - name: KAFKA_TRANSACTION_STATE_LOG_MIN_ISR
+          value: '1'
+        - name: KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS
+          value: '0'
+        - name: KAFKA_DEFAULT_REPLICATION_FACTOR
+          value: '1'
+        - name: KAFKA_MIN_INSYNC_REPLICAS
+          value: '1'
+        - name: KAFKA_NUM_PARTITIONS
+          value: '6'
+        - name: KAFKA_LOG_DIRS
+          value: /tmp/kraft-combined-logs/data
+        ports:
+        - containerPort: 9092
+          name: client
+        - containerPort: 9093
+          name: controller
+        startupProbe:
+          tcpSocket:
+            port: 9092
+          periodSeconds: 10
+          failureThreshold: 30
+        readinessProbe:
+          tcpSocket:
+            port: 9092
+          periodSeconds: 10
+          failureThreshold: 6
+        livenessProbe:
+          tcpSocket:
+            port: 9092
+          periodSeconds: 20
+          failureThreshold: 6
+        resources:
+          requests:
+            cpu: 500m
+            memory: 1Gi
+          limits:
+            cpu: 1500m
+            memory: 2Gi
+        volumeMounts:
+        - name: kafka-data
+          mountPath: /tmp/kraft-combined-logs
+      enableServiceLinks: false
+  volumeClaimTemplates:
+  - metadata:
+      name: kafka-data
+    spec:
+      accessModes:
+      - ReadWriteOnce
+      resources:
+        requests:
+          storage: 20Gi
+  podManagementPolicy: Parallel
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: fx-core-service
+  namespace: fx-trading-camel422
+  labels:
+    app.kubernetes.io/part-of: fx-trading-camel422
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: fx-core-service
+  template:
+    metadata:
+      labels:
+        app: fx-core-service
+    spec:
+      containers:
+      - name: fx-core-service
+        image: image-registry.openshift-image-registry.svc:5000/fx-trading-camel422/fx-core-service:camel422
+        imagePullPolicy: Always
+        env:
+        - name: DB_HOST
+          value: fx-core-db
+        - name: DB_PORT
+          value: '5432'
+        - name: DB_NAME
+          value: fx_trading
+        - name: KAFKA_BOOTSTRAP_SERVERS
+          value: fx-kafka:9092
+        - name: SERVER_PORT
+          value: '8080'
+        - name: OUTBOX_POLL_PERIOD_MS
+          value: '50'
+        - name: OTEL_EXPORTER_OTLP_ENDPOINT
+          value: http://fx-tempo:4318/v1/traces
+        - name: LOKI_URL
+          value: http://fx-loki:3100/loki/api/v1/push
+        - name: DB_POOL_MAX_SIZE
+          value: '16'
+        - name: DB_POOL_MIN_IDLE
+          value: '4'
+        - name: DB_POOL_CONNECTION_TIMEOUT_MS
+          value: '5000'
+        - name: DB_POOL_IDLE_TIMEOUT_MS
+          value: '30000'
+        - name: DB_POOL_MAX_LIFETIME_MS
+          value: '300000'
+        - name: BALANCE_BUCKET_COUNT
+          value: '16'
+        - name: ACTIVITY_DB_URL
+          value: jdbc:postgresql://fx-trade-saga-db:5432/fx_trading
+        - name: ACTIVITY_DB_USERNAME
+          value: fx
+        - name: SAGA_DB_URL
+          value: jdbc:postgresql://fx-trade-saga-db:5432/fx_trading
+        - name: SAGA_DB_USERNAME
+          value: fx
+        - name: ACTIVITY_DB_POOL_MAX_SIZE
+          value: '8'
+        - name: SAGA_DB_POOL_MAX_SIZE
+          value: '5'
+        - name: DB_USER
+          valueFrom:
+            secretKeyRef:
+              name: fx-database
+              key: username
+        - name: DB_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: fx-database
+              key: password
+        - name: ACTIVITY_DB_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: fx-database
+              key: password
+        - name: SAGA_DB_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: fx-database
+              key: password
+        - name: JAVA_TOOL_OPTIONS
+          value: -XX:MaxRAMPercentage=60.0 -XX:InitialRAMPercentage=20.0
+        ports:
+        - containerPort: 8080
+          name: http
+        startupProbe:
+          httpGet:
+            path: /actuator/health
+            port: 8080
+          periodSeconds: 10
+          failureThreshold: 30
+        readinessProbe:
+          httpGet:
+            path: /actuator/health/readiness
+            port: 8080
+          periodSeconds: 10
+          failureThreshold: 3
+        livenessProbe:
+          httpGet:
+            path: /actuator/health/liveness
+            port: 8080
+          periodSeconds: 20
+          failureThreshold: 3
+        resources:
+          requests:
+            cpu: 300m
+            memory: 768Mi
+          limits:
+            cpu: '1'
+            memory: 1Gi
+      enableServiceLinks: false
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: trade-saga-service
+  namespace: fx-trading-camel422
+  labels:
+    app.kubernetes.io/part-of: fx-trading-camel422
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: trade-saga-service
+  template:
+    metadata:
+      labels:
+        app: trade-saga-service
+    spec:
+      containers:
+      - name: trade-saga-service
+        image: image-registry.openshift-image-registry.svc:5000/fx-trading-camel422/trade-saga-service:camel422
+        imagePullPolicy: Always
+        env:
+        - name: DB_HOST
+          value: fx-trade-saga-db
+        - name: DB_PORT
+          value: '5432'
+        - name: DB_NAME
+          value: fx_trading
+        - name: KAFKA_BOOTSTRAP_SERVERS
+          value: fx-kafka:9092
+        - name: SERVER_PORT
+          value: '8081'
+        - name: OUTBOX_POLL_PERIOD_MS
+          value: '50'
+        - name: OTEL_EXPORTER_OTLP_ENDPOINT
+          value: http://fx-tempo:4318/v1/traces
+        - name: LOKI_URL
+          value: http://fx-loki:3100/loki/api/v1/push
+        - name: SPRING_DATASOURCE_HIKARI_MAXIMUM_POOL_SIZE
+          value: '8'
+        - name: SPRING_DATASOURCE_HIKARI_MINIMUM_IDLE
+          value: '3'
+        - name: DB_USER
+          valueFrom:
+            secretKeyRef:
+              name: fx-database
+              key: username
+        - name: DB_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: fx-database
+              key: password
+        - name: JAVA_TOOL_OPTIONS
+          value: -XX:MaxRAMPercentage=60.0 -XX:InitialRAMPercentage=20.0
+        ports:
+        - containerPort: 8081
+          name: http
+        startupProbe:
+          httpGet:
+            path: /actuator/health
+            port: 8081
+          periodSeconds: 10
+          failureThreshold: 30
+          timeoutSeconds: 5
+        readinessProbe:
+          httpGet:
+            path: /actuator/health/readiness
+            port: 8081
+          periodSeconds: 10
+          failureThreshold: 3
+          timeoutSeconds: 5
+        livenessProbe:
+          httpGet:
+            path: /actuator/health/liveness
+            port: 8081
+          periodSeconds: 20
+          failureThreshold: 6
+          timeoutSeconds: 5
+        resources:
+          requests:
+            cpu: 300m
+            memory: 512Mi
+          limits:
+            cpu: '1'
+            memory: 768Mi
+      enableServiceLinks: false
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cover-service
+  namespace: fx-trading-camel422
+  labels:
+    app.kubernetes.io/part-of: fx-trading-camel422
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: cover-service
+  template:
+    metadata:
+      labels:
+        app: cover-service
+    spec:
+      containers:
+      - name: cover-service
+        image: image-registry.openshift-image-registry.svc:5000/fx-trading-camel422/cover-service:camel422
+        imagePullPolicy: Always
+        env:
+        - name: DB_HOST
+          value: fx-cover-db
+        - name: DB_PORT
+          value: '5432'
+        - name: DB_NAME
+          value: fx_trading
+        - name: KAFKA_BOOTSTRAP_SERVERS
+          value: fx-kafka:9092
+        - name: SERVER_PORT
+          value: '8082'
+        - name: OUTBOX_POLL_PERIOD_MS
+          value: '50'
+        - name: OTEL_EXPORTER_OTLP_ENDPOINT
+          value: http://fx-tempo:4318/v1/traces
+        - name: LOKI_URL
+          value: http://fx-loki:3100/loki/api/v1/push
+        - name: ACTIVITY_DB_URL
+          value: jdbc:postgresql://fx-trade-saga-db:5432/fx_trading
+        - name: ACTIVITY_DB_USERNAME
+          value: fx
+        - name: ACTIVITY_DB_POOL_MAX_SIZE
+          value: '5'
+        - name: DB_USER
+          valueFrom:
+            secretKeyRef:
+              name: fx-database
+              key: username
+        - name: DB_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: fx-database
+              key: password
+        - name: ACTIVITY_DB_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: fx-database
+              key: password
+        - name: JAVA_TOOL_OPTIONS
+          value: -XX:MaxRAMPercentage=60.0 -XX:InitialRAMPercentage=20.0
+        ports:
+        - containerPort: 8082
+          name: http
+        startupProbe:
+          httpGet:
+            path: /actuator/health
+            port: 8082
+          periodSeconds: 10
+          failureThreshold: 30
+        readinessProbe:
+          httpGet:
+            path: /actuator/health/readiness
+            port: 8082
+          periodSeconds: 10
+          failureThreshold: 3
+        livenessProbe:
+          httpGet:
+            path: /actuator/health/liveness
+            port: 8082
+          periodSeconds: 20
+          failureThreshold: 3
+        resources:
+          requests:
+            cpu: 200m
+            memory: 384Mi
+          limits:
+            cpu: 750m
+            memory: 768Mi
+      enableServiceLinks: false
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: risk-service
+  namespace: fx-trading-camel422
+  labels:
+    app.kubernetes.io/part-of: fx-trading-camel422
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: risk-service
+  template:
+    metadata:
+      labels:
+        app: risk-service
+    spec:
+      containers:
+      - name: risk-service
+        image: image-registry.openshift-image-registry.svc:5000/fx-trading-camel422/risk-service:camel422
+        imagePullPolicy: Always
+        env:
+        - name: DB_HOST
+          value: fx-risk-db
+        - name: DB_PORT
+          value: '5432'
+        - name: DB_NAME
+          value: fx_trading
+        - name: KAFKA_BOOTSTRAP_SERVERS
+          value: fx-kafka:9092
+        - name: SERVER_PORT
+          value: '8083'
+        - name: OUTBOX_POLL_PERIOD_MS
+          value: '50'
+        - name: OTEL_EXPORTER_OTLP_ENDPOINT
+          value: http://fx-tempo:4318/v1/traces
+        - name: LOKI_URL
+          value: http://fx-loki:3100/loki/api/v1/push
+        - name: ACTIVITY_DB_URL
+          value: jdbc:postgresql://fx-trade-saga-db:5432/fx_trading
+        - name: ACTIVITY_DB_USERNAME
+          value: fx
+        - name: ACTIVITY_DB_POOL_MAX_SIZE
+          value: '5'
+        - name: DB_USER
+          valueFrom:
+            secretKeyRef:
+              name: fx-database
+              key: username
+        - name: DB_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: fx-database
+              key: password
+        - name: ACTIVITY_DB_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: fx-database
+              key: password
+        - name: JAVA_TOOL_OPTIONS
+          value: -XX:MaxRAMPercentage=60.0 -XX:InitialRAMPercentage=20.0
+        ports:
+        - containerPort: 8083
+          name: http
+        startupProbe:
+          httpGet:
+            path: /actuator/health
+            port: 8083
+          periodSeconds: 10
+          failureThreshold: 30
+        readinessProbe:
+          httpGet:
+            path: /actuator/health/readiness
+            port: 8083
+          periodSeconds: 10
+          failureThreshold: 3
+        livenessProbe:
+          httpGet:
+            path: /actuator/health/liveness
+            port: 8083
+          periodSeconds: 20
+          failureThreshold: 3
+        resources:
+          requests:
+            cpu: 200m
+            memory: 384Mi
+          limits:
+            cpu: 750m
+            memory: 768Mi
+      enableServiceLinks: false
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: accounting-service
+  namespace: fx-trading-camel422
+  labels:
+    app.kubernetes.io/part-of: fx-trading-camel422
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: accounting-service
+  template:
+    metadata:
+      labels:
+        app: accounting-service
+    spec:
+      containers:
+      - name: accounting-service
+        image: image-registry.openshift-image-registry.svc:5000/fx-trading-camel422/accounting-service:camel422
+        imagePullPolicy: Always
+        env:
+        - name: DB_HOST
+          value: fx-accounting-db
+        - name: DB_PORT
+          value: '5432'
+        - name: DB_NAME
+          value: fx_trading
+        - name: KAFKA_BOOTSTRAP_SERVERS
+          value: fx-kafka:9092
+        - name: SERVER_PORT
+          value: '8084'
+        - name: OUTBOX_POLL_PERIOD_MS
+          value: '50'
+        - name: OTEL_EXPORTER_OTLP_ENDPOINT
+          value: http://fx-tempo:4318/v1/traces
+        - name: LOKI_URL
+          value: http://fx-loki:3100/loki/api/v1/push
+        - name: ACTIVITY_DB_URL
+          value: jdbc:postgresql://fx-trade-saga-db:5432/fx_trading
+        - name: ACTIVITY_DB_USERNAME
+          value: fx
+        - name: ACTIVITY_DB_POOL_MAX_SIZE
+          value: '5'
+        - name: DB_USER
+          valueFrom:
+            secretKeyRef:
+              name: fx-database
+              key: username
+        - name: DB_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: fx-database
+              key: password
+        - name: ACTIVITY_DB_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: fx-database
+              key: password
+        - name: JAVA_TOOL_OPTIONS
+          value: -XX:MaxRAMPercentage=60.0 -XX:InitialRAMPercentage=20.0
+        ports:
+        - containerPort: 8084
+          name: http
+        startupProbe:
+          httpGet:
+            path: /actuator/health
+            port: 8084
+          periodSeconds: 10
+          failureThreshold: 30
+        readinessProbe:
+          httpGet:
+            path: /actuator/health/readiness
+            port: 8084
+          periodSeconds: 10
+          failureThreshold: 3
+        livenessProbe:
+          httpGet:
+            path: /actuator/health/liveness
+            port: 8084
+          periodSeconds: 20
+          failureThreshold: 3
+        resources:
+          requests:
+            cpu: 200m
+            memory: 384Mi
+          limits:
+            cpu: 750m
+            memory: 768Mi
+      enableServiceLinks: false
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: settlement-service
+  namespace: fx-trading-camel422
+  labels:
+    app.kubernetes.io/part-of: fx-trading-camel422
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: settlement-service
+  template:
+    metadata:
+      labels:
+        app: settlement-service
+    spec:
+      containers:
+      - name: settlement-service
+        image: image-registry.openshift-image-registry.svc:5000/fx-trading-camel422/settlement-service:camel422
+        imagePullPolicy: Always
+        env:
+        - name: DB_HOST
+          value: fx-settlement-db
+        - name: DB_PORT
+          value: '5432'
+        - name: DB_NAME
+          value: fx_trading
+        - name: KAFKA_BOOTSTRAP_SERVERS
+          value: fx-kafka:9092
+        - name: SERVER_PORT
+          value: '8085'
+        - name: OUTBOX_POLL_PERIOD_MS
+          value: '50'
+        - name: OTEL_EXPORTER_OTLP_ENDPOINT
+          value: http://fx-tempo:4318/v1/traces
+        - name: LOKI_URL
+          value: http://fx-loki:3100/loki/api/v1/push
+        - name: ACTIVITY_DB_URL
+          value: jdbc:postgresql://fx-trade-saga-db:5432/fx_trading
+        - name: ACTIVITY_DB_USERNAME
+          value: fx
+        - name: ACTIVITY_DB_POOL_MAX_SIZE
+          value: '5'
+        - name: DB_USER
+          valueFrom:
+            secretKeyRef:
+              name: fx-database
+              key: username
+        - name: DB_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: fx-database
+              key: password
+        - name: ACTIVITY_DB_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: fx-database
+              key: password
+        - name: JAVA_TOOL_OPTIONS
+          value: -XX:MaxRAMPercentage=60.0 -XX:InitialRAMPercentage=20.0
+        ports:
+        - containerPort: 8085
+          name: http
+        startupProbe:
+          httpGet:
+            path: /actuator/health
+            port: 8085
+          periodSeconds: 10
+          failureThreshold: 30
+        readinessProbe:
+          httpGet:
+            path: /actuator/health/readiness
+            port: 8085
+          periodSeconds: 10
+          failureThreshold: 3
+        livenessProbe:
+          httpGet:
+            path: /actuator/health/liveness
+            port: 8085
+          periodSeconds: 20
+          failureThreshold: 3
+        resources:
+          requests:
+            cpu: 200m
+            memory: 384Mi
+          limits:
+            cpu: 750m
+            memory: 768Mi
+      enableServiceLinks: false
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: notification-service
+  namespace: fx-trading-camel422
+  labels:
+    app.kubernetes.io/part-of: fx-trading-camel422
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: notification-service
+  template:
+    metadata:
+      labels:
+        app: notification-service
+    spec:
+      containers:
+      - name: notification-service
+        image: image-registry.openshift-image-registry.svc:5000/fx-trading-camel422/notification-service:camel422
+        imagePullPolicy: Always
+        env:
+        - name: DB_HOST
+          value: fx-notification-db
+        - name: DB_PORT
+          value: '5432'
+        - name: DB_NAME
+          value: fx_trading
+        - name: KAFKA_BOOTSTRAP_SERVERS
+          value: fx-kafka:9092
+        - name: SERVER_PORT
+          value: '8086'
+        - name: OUTBOX_POLL_PERIOD_MS
+          value: '50'
+        - name: OTEL_EXPORTER_OTLP_ENDPOINT
+          value: http://fx-tempo:4318/v1/traces
+        - name: LOKI_URL
+          value: http://fx-loki:3100/loki/api/v1/push
+        - name: ACTIVITY_DB_URL
+          value: jdbc:postgresql://fx-trade-saga-db:5432/fx_trading
+        - name: ACTIVITY_DB_USERNAME
+          value: fx
+        - name: ACTIVITY_DB_POOL_MAX_SIZE
+          value: '5'
+        - name: DB_USER
+          valueFrom:
+            secretKeyRef:
+              name: fx-database
+              key: username
+        - name: DB_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: fx-database
+              key: password
+        - name: ACTIVITY_DB_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: fx-database
+              key: password
+        - name: JAVA_TOOL_OPTIONS
+          value: -XX:MaxRAMPercentage=60.0 -XX:InitialRAMPercentage=20.0
+        ports:
+        - containerPort: 8086
+          name: http
+        startupProbe:
+          httpGet:
+            path: /actuator/health
+            port: 8086
+          periodSeconds: 10
+          failureThreshold: 30
+        readinessProbe:
+          httpGet:
+            path: /actuator/health/readiness
+            port: 8086
+          periodSeconds: 10
+          failureThreshold: 3
+        livenessProbe:
+          httpGet:
+            path: /actuator/health/liveness
+            port: 8086
+          periodSeconds: 20
+          failureThreshold: 3
+        resources:
+          requests:
+            cpu: 150m
+            memory: 256Mi
+          limits:
+            cpu: 500m
+            memory: 512Mi
+      enableServiceLinks: false
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: compliance-service
+  namespace: fx-trading-camel422
+  labels:
+    app.kubernetes.io/part-of: fx-trading-camel422
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: compliance-service
+  template:
+    metadata:
+      labels:
+        app: compliance-service
+    spec:
+      containers:
+      - name: compliance-service
+        image: image-registry.openshift-image-registry.svc:5000/fx-trading-camel422/compliance-service:camel422
+        imagePullPolicy: Always
+        env:
+        - name: DB_HOST
+          value: fx-compliance-db
+        - name: DB_PORT
+          value: '5432'
+        - name: DB_NAME
+          value: fx_trading
+        - name: KAFKA_BOOTSTRAP_SERVERS
+          value: fx-kafka:9092
+        - name: SERVER_PORT
+          value: '8087'
+        - name: OUTBOX_POLL_PERIOD_MS
+          value: '50'
+        - name: OTEL_EXPORTER_OTLP_ENDPOINT
+          value: http://fx-tempo:4318/v1/traces
+        - name: LOKI_URL
+          value: http://fx-loki:3100/loki/api/v1/push
+        - name: ACTIVITY_DB_URL
+          value: jdbc:postgresql://fx-trade-saga-db:5432/fx_trading
+        - name: ACTIVITY_DB_USERNAME
+          value: fx
+        - name: ACTIVITY_DB_POOL_MAX_SIZE
+          value: '5'
+        - name: DB_USER
+          valueFrom:
+            secretKeyRef:
+              name: fx-database
+              key: username
+        - name: DB_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: fx-database
+              key: password
+        - name: ACTIVITY_DB_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: fx-database
+              key: password
+        - name: JAVA_TOOL_OPTIONS
+          value: -XX:MaxRAMPercentage=60.0 -XX:InitialRAMPercentage=20.0
+        ports:
+        - containerPort: 8087
+          name: http
+        startupProbe:
+          httpGet:
+            path: /actuator/health
+            port: 8087
+          periodSeconds: 10
+          failureThreshold: 30
+        readinessProbe:
+          httpGet:
+            path: /actuator/health/readiness
+            port: 8087
+          periodSeconds: 10
+          failureThreshold: 3
+        livenessProbe:
+          httpGet:
+            path: /actuator/health/liveness
+            port: 8087
+          periodSeconds: 20
+          failureThreshold: 3
+        resources:
+          requests:
+            cpu: 150m
+            memory: 256Mi
+          limits:
+            cpu: 500m
+            memory: 512Mi
+      enableServiceLinks: false
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: fx-frontend
+  namespace: fx-trading-camel422
+  labels:
+    app.kubernetes.io/part-of: fx-trading-camel422
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: fx-frontend
+  template:
+    metadata:
+      labels:
+        app: fx-frontend
+    spec:
+      containers:
+      - name: frontend
+        image: image-registry.openshift-image-registry.svc:5000/fx-trading-camel422/frontend:camel422
+        imagePullPolicy: Always
+        env:
+        - name: FX_CORE_BASE_URL
+          value: http://fx-core-service:8080
+        - name: PORT
+          value: '3000'
+        - name: HOSTNAME
+          value: 0.0.0.0
+        - name: NEXT_TELEMETRY_DISABLED
+          value: '1'
+        ports:
+        - containerPort: 3000
+          name: http
+      enableServiceLinks: false
+---
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: fx-frontend
+  namespace: fx-trading-camel422
+  labels:
+    app.kubernetes.io/part-of: fx-trading-camel422
+spec:
+  to:
+    kind: Service
+    name: fx-frontend
+  port:
+    targetPort: http
+  tls:
+    termination: edge
+    insecureEdgeTerminationPolicy: Redirect
+---
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: fx-core-service
+  annotations:
+    haproxy.router.openshift.io/timeout: 120s
+  namespace: fx-trading-camel422
+  labels:
+    app.kubernetes.io/part-of: fx-trading-camel422
+spec:
+  to:
+    kind: Service
+    name: fx-core-service
+  port:
+    targetPort: http
+  tls:
+    termination: edge
+    insecureEdgeTerminationPolicy: Redirect
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: fx-core-db
+  namespace: fx-trading-camel422
+  labels:
+    app.kubernetes.io/part-of: fx-trading-camel422
+spec:
+  selector:
+    app: fx-core-db
+  ports:
+  - name: postgres
+    port: 5432
+    targetPort: 5432
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: fx-trade-saga-db
+  namespace: fx-trading-camel422
+  labels:
+    app.kubernetes.io/part-of: fx-trading-camel422
+spec:
+  selector:
+    app: fx-trade-saga-db
+  ports:
+  - name: postgres
+    port: 5432
+    targetPort: 5432
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: fx-cover-db
+  namespace: fx-trading-camel422
+  labels:
+    app.kubernetes.io/part-of: fx-trading-camel422
+spec:
+  selector:
+    app: fx-cover-db
+  ports:
+  - name: postgres
+    port: 5432
+    targetPort: 5432
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: fx-risk-db
+  namespace: fx-trading-camel422
+  labels:
+    app.kubernetes.io/part-of: fx-trading-camel422
+spec:
+  selector:
+    app: fx-risk-db
+  ports:
+  - name: postgres
+    port: 5432
+    targetPort: 5432
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: fx-accounting-db
+  namespace: fx-trading-camel422
+  labels:
+    app.kubernetes.io/part-of: fx-trading-camel422
+spec:
+  selector:
+    app: fx-accounting-db
+  ports:
+  - name: postgres
+    port: 5432
+    targetPort: 5432
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: fx-settlement-db
+  namespace: fx-trading-camel422
+  labels:
+    app.kubernetes.io/part-of: fx-trading-camel422
+spec:
+  selector:
+    app: fx-settlement-db
+  ports:
+  - name: postgres
+    port: 5432
+    targetPort: 5432
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: fx-notification-db
+  namespace: fx-trading-camel422
+  labels:
+    app.kubernetes.io/part-of: fx-trading-camel422
+spec:
+  selector:
+    app: fx-notification-db
+  ports:
+  - name: postgres
+    port: 5432
+    targetPort: 5432
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: fx-compliance-db
+  namespace: fx-trading-camel422
+  labels:
+    app.kubernetes.io/part-of: fx-trading-camel422
+spec:
+  selector:
+    app: fx-compliance-db
+  ports:
+  - name: postgres
+    port: 5432
+    targetPort: 5432
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: fx-core-db-data
+  namespace: fx-trading-camel422
+  labels:
+    app.kubernetes.io/part-of: fx-trading-camel422
+spec:
+  accessModes:
+  - ReadWriteOnce
+  resources:
+    requests:
+      storage: 10Gi
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: fx-trade-saga-db-data
+  namespace: fx-trading-camel422
+  labels:
+    app.kubernetes.io/part-of: fx-trading-camel422
+spec:
+  accessModes:
+  - ReadWriteOnce
+  resources:
+    requests:
+      storage: 10Gi
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: fx-cover-db-data
+  namespace: fx-trading-camel422
+  labels:
+    app.kubernetes.io/part-of: fx-trading-camel422
+spec:
+  accessModes:
+  - ReadWriteOnce
+  resources:
+    requests:
+      storage: 5Gi
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: fx-risk-db-data
+  namespace: fx-trading-camel422
+  labels:
+    app.kubernetes.io/part-of: fx-trading-camel422
+spec:
+  accessModes:
+  - ReadWriteOnce
+  resources:
+    requests:
+      storage: 5Gi
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: fx-accounting-db-data
+  namespace: fx-trading-camel422
+  labels:
+    app.kubernetes.io/part-of: fx-trading-camel422
+spec:
+  accessModes:
+  - ReadWriteOnce
+  resources:
+    requests:
+      storage: 5Gi
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: fx-settlement-db-data
+  namespace: fx-trading-camel422
+  labels:
+    app.kubernetes.io/part-of: fx-trading-camel422
+spec:
+  accessModes:
+  - ReadWriteOnce
+  resources:
+    requests:
+      storage: 5Gi
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: fx-notification-db-data
+  namespace: fx-trading-camel422
+  labels:
+    app.kubernetes.io/part-of: fx-trading-camel422
+spec:
+  accessModes:
+  - ReadWriteOnce
+  resources:
+    requests:
+      storage: 5Gi
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: fx-compliance-db-data
+  namespace: fx-trading-camel422
+  labels:
+    app.kubernetes.io/part-of: fx-trading-camel422
+spec:
+  accessModes:
+  - ReadWriteOnce
+  resources:
+    requests:
+      storage: 5Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: fx-core-db
+  namespace: fx-trading-camel422
+  labels:
+    app.kubernetes.io/part-of: fx-trading-camel422
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: fx-core-db
+  template:
+    metadata:
+      labels:
+        app: fx-core-db
+    spec:
+      containers:
+      - name: postgres
+        image: image-registry.openshift-image-registry.svc:5000/fx-trading-camel422/fx-postgres:camel422
+        imagePullPolicy: Always
+        args:
+        - -c
+        - max_connections=240
+        - -c
+        - log_lock_waits=on
+        - -c
+        - deadlock_timeout=100ms
+        - -c
+        - wal_level=logical
+        - -c
+        - max_replication_slots=10
+        - -c
+        - max_wal_senders=10
+        env:
+        - name: POSTGRES_DB
+          value: fx_trading
+        - name: PGDATA
+          value: /tmp/pgdata/pgdata
+        - name: POSTGRES_USER
+          valueFrom:
+            secretKeyRef:
+              name: fx-database
+              key: username
+        - name: POSTGRES_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: fx-database
+              key: password
+        ports:
+        - containerPort: 5432
+          name: postgres
+        startupProbe:
+          tcpSocket:
+            port: 5432
+          periodSeconds: 10
+          failureThreshold: 30
+        readinessProbe:
+          tcpSocket:
+            port: 5432
+          periodSeconds: 10
+          failureThreshold: 3
+        livenessProbe:
+          tcpSocket:
+            port: 5432
+          periodSeconds: 20
+          failureThreshold: 3
+        resources:
+          requests:
+            cpu: '1'
+            memory: 768Mi
+          limits:
+            cpu: '2'
+            memory: 1Gi
+        volumeMounts:
+        - name: initdb
+          mountPath: /docker-entrypoint-initdb.d
+        - name: data
+          mountPath: /tmp/pgdata
+      volumes:
+      - name: initdb
+        configMap:
+          name: fx-postgres-init
+      - name: data
+        persistentVolumeClaim:
+          claimName: fx-core-db-data
+      enableServiceLinks: false
+  strategy:
+    type: Recreate
+    rollingUpdate: null
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: fx-trade-saga-db
+  namespace: fx-trading-camel422
+  labels:
+    app.kubernetes.io/part-of: fx-trading-camel422
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: fx-trade-saga-db
+  template:
+    metadata:
+      labels:
+        app: fx-trade-saga-db
+    spec:
+      containers:
+      - name: postgres
+        image: image-registry.openshift-image-registry.svc:5000/fx-trading-camel422/fx-postgres:camel422
+        imagePullPolicy: Always
+        args:
+        - -c
+        - max_connections=400
+        - -c
+        - log_lock_waits=on
+        - -c
+        - deadlock_timeout=100ms
+        - -c
+        - wal_level=logical
+        - -c
+        - max_replication_slots=10
+        - -c
+        - max_wal_senders=10
+        env:
+        - name: POSTGRES_DB
+          value: fx_trading
+        - name: PGDATA
+          value: /tmp/pgdata/pgdata
+        - name: POSTGRES_USER
+          valueFrom:
+            secretKeyRef:
+              name: fx-database
+              key: username
+        - name: POSTGRES_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: fx-database
+              key: password
+        ports:
+        - containerPort: 5432
+          name: postgres
+        startupProbe:
+          tcpSocket:
+            port: 5432
+          periodSeconds: 10
+          failureThreshold: 30
+        readinessProbe:
+          tcpSocket:
+            port: 5432
+          periodSeconds: 10
+          failureThreshold: 3
+        livenessProbe:
+          tcpSocket:
+            port: 5432
+          periodSeconds: 20
+          failureThreshold: 3
+        resources:
+          requests:
+            cpu: '2'
+            memory: 2Gi
+          limits:
+            cpu: '5'
+            memory: 4Gi
+        volumeMounts:
+        - name: initdb
+          mountPath: /docker-entrypoint-initdb.d
+        - name: data
+          mountPath: /tmp/pgdata
+      volumes:
+      - name: initdb
+        configMap:
+          name: fx-postgres-init
+      - name: data
+        persistentVolumeClaim:
+          claimName: fx-trade-saga-db-data
+      enableServiceLinks: false
+  strategy:
+    type: Recreate
+    rollingUpdate: null
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: fx-cover-db
+  namespace: fx-trading-camel422
+  labels:
+    app.kubernetes.io/part-of: fx-trading-camel422
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: fx-cover-db
+  template:
+    metadata:
+      labels:
+        app: fx-cover-db
+    spec:
+      containers:
+      - name: postgres
+        image: image-registry.openshift-image-registry.svc:5000/fx-trading-camel422/fx-postgres:camel422
+        imagePullPolicy: Always
+        env:
+        - name: POSTGRES_DB
+          value: fx_trading
+        - name: PGDATA
+          value: /tmp/pgdata/pgdata
+        - name: POSTGRES_USER
+          valueFrom:
+            secretKeyRef:
+              name: fx-database
+              key: username
+        - name: POSTGRES_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: fx-database
+              key: password
+        ports:
+        - containerPort: 5432
+          name: postgres
+        startupProbe:
+          tcpSocket:
+            port: 5432
+          periodSeconds: 10
+          failureThreshold: 30
+        readinessProbe:
+          tcpSocket:
+            port: 5432
+          periodSeconds: 10
+          failureThreshold: 3
+        livenessProbe:
+          tcpSocket:
+            port: 5432
+          periodSeconds: 20
+          failureThreshold: 3
+        resources:
+          requests:
+            cpu: 250m
+            memory: 384Mi
+          limits:
+            cpu: 750m
+            memory: 768Mi
+        volumeMounts:
+        - name: initdb
+          mountPath: /docker-entrypoint-initdb.d
+        - name: data
+          mountPath: /tmp/pgdata
+      volumes:
+      - name: initdb
+        configMap:
+          name: fx-postgres-init
+      - name: data
+        persistentVolumeClaim:
+          claimName: fx-cover-db-data
+      enableServiceLinks: false
+  strategy:
+    type: Recreate
+    rollingUpdate: null
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: fx-risk-db
+  namespace: fx-trading-camel422
+  labels:
+    app.kubernetes.io/part-of: fx-trading-camel422
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: fx-risk-db
+  template:
+    metadata:
+      labels:
+        app: fx-risk-db
+    spec:
+      containers:
+      - name: postgres
+        image: image-registry.openshift-image-registry.svc:5000/fx-trading-camel422/fx-postgres:camel422
+        imagePullPolicy: Always
+        env:
+        - name: POSTGRES_DB
+          value: fx_trading
+        - name: PGDATA
+          value: /tmp/pgdata/pgdata
+        - name: POSTGRES_USER
+          valueFrom:
+            secretKeyRef:
+              name: fx-database
+              key: username
+        - name: POSTGRES_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: fx-database
+              key: password
+        ports:
+        - containerPort: 5432
+          name: postgres
+        startupProbe:
+          tcpSocket:
+            port: 5432
+          periodSeconds: 10
+          failureThreshold: 30
+        readinessProbe:
+          tcpSocket:
+            port: 5432
+          periodSeconds: 10
+          failureThreshold: 3
+        livenessProbe:
+          tcpSocket:
+            port: 5432
+          periodSeconds: 20
+          failureThreshold: 3
+        resources:
+          requests:
+            cpu: 250m
+            memory: 384Mi
+          limits:
+            cpu: 750m
+            memory: 768Mi
+        volumeMounts:
+        - name: initdb
+          mountPath: /docker-entrypoint-initdb.d
+        - name: data
+          mountPath: /tmp/pgdata
+      volumes:
+      - name: initdb
+        configMap:
+          name: fx-postgres-init
+      - name: data
+        persistentVolumeClaim:
+          claimName: fx-risk-db-data
+      enableServiceLinks: false
+  strategy:
+    type: Recreate
+    rollingUpdate: null
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: fx-accounting-db
+  namespace: fx-trading-camel422
+  labels:
+    app.kubernetes.io/part-of: fx-trading-camel422
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: fx-accounting-db
+  template:
+    metadata:
+      labels:
+        app: fx-accounting-db
+    spec:
+      containers:
+      - name: postgres
+        image: image-registry.openshift-image-registry.svc:5000/fx-trading-camel422/fx-postgres:camel422
+        imagePullPolicy: Always
+        env:
+        - name: POSTGRES_DB
+          value: fx_trading
+        - name: PGDATA
+          value: /tmp/pgdata/pgdata
+        - name: POSTGRES_USER
+          valueFrom:
+            secretKeyRef:
+              name: fx-database
+              key: username
+        - name: POSTGRES_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: fx-database
+              key: password
+        ports:
+        - containerPort: 5432
+          name: postgres
+        startupProbe:
+          tcpSocket:
+            port: 5432
+          periodSeconds: 10
+          failureThreshold: 30
+        readinessProbe:
+          tcpSocket:
+            port: 5432
+          periodSeconds: 10
+          failureThreshold: 3
+        livenessProbe:
+          tcpSocket:
+            port: 5432
+          periodSeconds: 20
+          failureThreshold: 3
+        resources:
+          requests:
+            cpu: 250m
+            memory: 384Mi
+          limits:
+            cpu: 750m
+            memory: 768Mi
+        volumeMounts:
+        - name: initdb
+          mountPath: /docker-entrypoint-initdb.d
+        - name: data
+          mountPath: /tmp/pgdata
+      volumes:
+      - name: initdb
+        configMap:
+          name: fx-postgres-init
+      - name: data
+        persistentVolumeClaim:
+          claimName: fx-accounting-db-data
+      enableServiceLinks: false
+  strategy:
+    type: Recreate
+    rollingUpdate: null
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: fx-settlement-db
+  namespace: fx-trading-camel422
+  labels:
+    app.kubernetes.io/part-of: fx-trading-camel422
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: fx-settlement-db
+  template:
+    metadata:
+      labels:
+        app: fx-settlement-db
+    spec:
+      containers:
+      - name: postgres
+        image: image-registry.openshift-image-registry.svc:5000/fx-trading-camel422/fx-postgres:camel422
+        imagePullPolicy: Always
+        env:
+        - name: POSTGRES_DB
+          value: fx_trading
+        - name: PGDATA
+          value: /tmp/pgdata/pgdata
+        - name: POSTGRES_USER
+          valueFrom:
+            secretKeyRef:
+              name: fx-database
+              key: username
+        - name: POSTGRES_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: fx-database
+              key: password
+        ports:
+        - containerPort: 5432
+          name: postgres
+        startupProbe:
+          tcpSocket:
+            port: 5432
+          periodSeconds: 10
+          failureThreshold: 30
+        readinessProbe:
+          tcpSocket:
+            port: 5432
+          periodSeconds: 10
+          failureThreshold: 3
+        livenessProbe:
+          tcpSocket:
+            port: 5432
+          periodSeconds: 20
+          failureThreshold: 3
+        resources:
+          requests:
+            cpu: 250m
+            memory: 384Mi
+          limits:
+            cpu: 750m
+            memory: 768Mi
+        volumeMounts:
+        - name: initdb
+          mountPath: /docker-entrypoint-initdb.d
+        - name: data
+          mountPath: /tmp/pgdata
+      volumes:
+      - name: initdb
+        configMap:
+          name: fx-postgres-init
+      - name: data
+        persistentVolumeClaim:
+          claimName: fx-settlement-db-data
+      enableServiceLinks: false
+  strategy:
+    type: Recreate
+    rollingUpdate: null
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: fx-notification-db
+  namespace: fx-trading-camel422
+  labels:
+    app.kubernetes.io/part-of: fx-trading-camel422
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: fx-notification-db
+  template:
+    metadata:
+      labels:
+        app: fx-notification-db
+    spec:
+      containers:
+      - name: postgres
+        image: image-registry.openshift-image-registry.svc:5000/fx-trading-camel422/fx-postgres:camel422
+        imagePullPolicy: Always
+        env:
+        - name: POSTGRES_DB
+          value: fx_trading
+        - name: PGDATA
+          value: /tmp/pgdata/pgdata
+        - name: POSTGRES_USER
+          valueFrom:
+            secretKeyRef:
+              name: fx-database
+              key: username
+        - name: POSTGRES_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: fx-database
+              key: password
+        ports:
+        - containerPort: 5432
+          name: postgres
+        startupProbe:
+          tcpSocket:
+            port: 5432
+          periodSeconds: 10
+          failureThreshold: 30
+        readinessProbe:
+          tcpSocket:
+            port: 5432
+          periodSeconds: 10
+          failureThreshold: 3
+        livenessProbe:
+          tcpSocket:
+            port: 5432
+          periodSeconds: 20
+          failureThreshold: 3
+        resources:
+          requests:
+            cpu: 250m
+            memory: 384Mi
+          limits:
+            cpu: 750m
+            memory: 768Mi
+        volumeMounts:
+        - name: initdb
+          mountPath: /docker-entrypoint-initdb.d
+        - name: data
+          mountPath: /tmp/pgdata
+      volumes:
+      - name: initdb
+        configMap:
+          name: fx-postgres-init
+      - name: data
+        persistentVolumeClaim:
+          claimName: fx-notification-db-data
+      enableServiceLinks: false
+  strategy:
+    type: Recreate
+    rollingUpdate: null
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: fx-compliance-db
+  namespace: fx-trading-camel422
+  labels:
+    app.kubernetes.io/part-of: fx-trading-camel422
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: fx-compliance-db
+  template:
+    metadata:
+      labels:
+        app: fx-compliance-db
+    spec:
+      containers:
+      - name: postgres
+        image: image-registry.openshift-image-registry.svc:5000/fx-trading-camel422/fx-postgres:camel422
+        imagePullPolicy: Always
+        env:
+        - name: POSTGRES_DB
+          value: fx_trading
+        - name: PGDATA
+          value: /tmp/pgdata/pgdata
+        - name: POSTGRES_USER
+          valueFrom:
+            secretKeyRef:
+              name: fx-database
+              key: username
+        - name: POSTGRES_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: fx-database
+              key: password
+        ports:
+        - containerPort: 5432
+          name: postgres
+        startupProbe:
+          tcpSocket:
+            port: 5432
+          periodSeconds: 10
+          failureThreshold: 30
+        readinessProbe:
+          tcpSocket:
+            port: 5432
+          periodSeconds: 10
+          failureThreshold: 3
+        livenessProbe:
+          tcpSocket:
+            port: 5432
+          periodSeconds: 20
+          failureThreshold: 3
+        resources:
+          requests:
+            cpu: 250m
+            memory: 384Mi
+          limits:
+            cpu: 750m
+            memory: 768Mi
+        volumeMounts:
+        - name: initdb
+          mountPath: /docker-entrypoint-initdb.d
+        - name: data
+          mountPath: /tmp/pgdata
+      volumes:
+      - name: initdb
+        configMap:
+          name: fx-postgres-init
+      - name: data
+        persistentVolumeClaim:
+          claimName: fx-compliance-db-data
+      enableServiceLinks: false
+  strategy:
+    type: Recreate
+    rollingUpdate: null
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: fx-prometheus-config
+  namespace: fx-trading-camel422
+  labels:
+    app.kubernetes.io/part-of: fx-trading-camel422
+data:
+  prometheus.yml: "global:\n  scrape_interval: 15s\nscrape_configs:\n- job_name: fx-core-service\n\
+    \  metrics_path: /actuator/prometheus\n  static_configs:\n  - targets:\n    -\
+    \ fx-core-service:8080\n    labels:\n      namespace: fx-trading-camel422\n  \
+    \    service: fx-core-service\n- job_name: trade-saga-service\n  metrics_path:\
+    \ /actuator/prometheus\n  static_configs:\n  - targets:\n    - trade-saga-service:8081\n\
+    \    labels:\n      namespace: fx-trading-camel422\n      service: trade-saga-service\n\
+    - job_name: cover-service\n  metrics_path: /actuator/prometheus\n  static_configs:\n\
+    \  - targets:\n    - cover-service:8082\n    labels:\n      namespace: fx-trading-camel422\n\
+    \      service: cover-service\n- job_name: risk-service\n  metrics_path: /actuator/prometheus\n\
+    \  static_configs:\n  - targets:\n    - risk-service:8083\n    labels:\n     \
+    \ namespace: fx-trading-camel422\n      service: risk-service\n- job_name: accounting-service\n\
+    \  metrics_path: /actuator/prometheus\n  static_configs:\n  - targets:\n    -\
+    \ accounting-service:8084\n    labels:\n      namespace: fx-trading-camel422\n\
+    \      service: accounting-service\n- job_name: settlement-service\n  metrics_path:\
+    \ /actuator/prometheus\n  static_configs:\n  - targets:\n    - settlement-service:8085\n\
+    \    labels:\n      namespace: fx-trading-camel422\n      service: settlement-service\n\
+    - job_name: notification-service\n  metrics_path: /actuator/prometheus\n  static_configs:\n\
+    \  - targets:\n    - notification-service:8086\n    labels:\n      namespace:\
+    \ fx-trading-camel422\n      service: notification-service\n- job_name: compliance-service\n\
+    \  metrics_path: /actuator/prometheus\n  static_configs:\n  - targets:\n    -\
+    \ compliance-service:8087\n    labels:\n      namespace: fx-trading-camel422\n\
+    \      service: compliance-service\n"
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: fx-prometheus
+  namespace: fx-trading-camel422
+  labels:
+    app.kubernetes.io/part-of: fx-trading-camel422
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: fx-loki-config
+  namespace: fx-trading-camel422
+  labels:
+    app.kubernetes.io/part-of: fx-trading-camel422
+data:
+  loki.yaml: "auth_enabled: false\n\nserver:\n  http_listen_port: 3100\n  grpc_listen_port:\
+    \ 9096\n\ncommon:\n  instance_addr: 127.0.0.1\n  path_prefix: /tmp/loki\n  replication_factor:\
+    \ 1\n  ring:\n    kvstore:\n      store: inmemory\n  storage:\n    filesystem:\n\
+    \      chunks_directory: /tmp/loki/chunks\n      rules_directory: /tmp/loki/rules\n\
+    \nschema_config:\n  configs:\n    - from: 2024-01-01\n      store: tsdb\n    \
+    \  object_store: filesystem\n      schema: v13\n      index:\n        prefix:\
+    \ index_\n        period: 24h\n\nstorage_config:\n  filesystem:\n    directory:\
+    \ /tmp/loki/chunks\n\nlimits_config:\n  allow_structured_metadata: true\n  volume_enabled:\
+    \ true\n\ncompactor:\n  working_directory: /tmp/loki/compactor\n  compaction_interval:\
+    \ 5m\n"
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: fx-tempo-config
+  namespace: fx-trading-camel422
+  labels:
+    app.kubernetes.io/part-of: fx-trading-camel422
+data:
+  tempo.yaml: "server:\n  http_listen_port: 3200\n\ndistributor:\n  receivers:\n \
+    \   otlp:\n      protocols:\n        grpc:\n          endpoint: 0.0.0.0:4317\n\
+    \        http:\n          endpoint: 0.0.0.0:4318\n\ningester:\n  trace_idle_period:\
+    \ 10s\n  max_block_duration: 5m\n\ncompactor:\n  compaction:\n    block_retention:\
+    \ 24h\n\nstorage:\n  trace:\n    backend: local\n    local:\n      path: /tmp/tempo/blocks\n\
+    \    wal:\n      path: /tmp/tempo/wal\n"
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: fx-grafana-datasources
+  namespace: fx-trading-camel422
+  labels:
+    app.kubernetes.io/part-of: fx-trading-camel422
+data:
+  datasources.yaml: "apiVersion: 1\ndatasources:\n  - name: Prometheus\n    uid: prometheus\n\
+    \    type: prometheus\n    access: proxy\n    url: http://fx-prometheus:9090\n\
+    \    isDefault: true\n    editable: true\n  - name: Loki\n    uid: loki\n    type:\
+    \ loki\n    access: proxy\n    url: http://fx-loki:3100\n    editable: true\n\
+    \    jsonData:\n      maxLines: 1000\n      derivedFields:\n        - datasourceUid:\
+    \ tempo\n          matcherRegex: 'traceId=([a-f0-9]+)'\n          name: TraceID\n\
+    \          url: '$${__value.raw}'\n  - name: Tempo\n    uid: tempo\n    type:\
+    \ tempo\n    access: proxy\n    url: http://fx-tempo:3200\n    editable: true\n\
+    \    jsonData:\n      httpMethod: GET\n      tracesToLogsV2:\n        datasourceUid:\
+    \ loki\n        spanStartTimeShift: \"-5m\"\n        spanEndTimeShift: \"5m\"\n\
+    \        tags:\n          - key: service.name\n            value: app\n"
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: fx-grafana-dashboard-provider
+  namespace: fx-trading-camel422
+  labels:
+    app.kubernetes.io/part-of: fx-trading-camel422
+data:
+  dashboards.yaml: "apiVersion: 1\nproviders:\n  - name: fx-trading\n    orgId: 1\n\
+    \    folder: FX Trading\n    type: file\n    disableDeletion: false\n    editable:\
+    \ true\n    options:\n      path: /var/lib/grafana/dashboards\n"
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: fx-grafana-dashboard
+  namespace: fx-trading-camel422
+  labels:
+    app.kubernetes.io/part-of: fx-trading-camel422
+data:
+  fx-trading-overview.json: "{\n  \"annotations\": {\n    \"list\": [\n      {\n \
+    \       \"builtIn\": 1,\n        \"datasource\": {\n          \"type\": \"grafana\"\
+    ,\n          \"uid\": \"-- Grafana --\"\n        },\n        \"enable\": true,\n\
+    \        \"hide\": true,\n        \"iconColor\": \"rgba(0, 211, 255, 1)\",\n \
+    \       \"name\": \"Annotations & Alerts\",\n        \"type\": \"dashboard\"\n\
+    \      }\n    ]\n  },\n  \"editable\": true,\n  \"fiscalYearStartMonth\": 0,\n\
+    \  \"graphTooltip\": 0,\n  \"id\": null,\n  \"links\": [],\n  \"panels\": [\n\
+    \    {\n      \"datasource\": {\"type\": \"prometheus\",\"uid\": \"prometheus\"\
+    },\n      \"fieldConfig\": {\"defaults\": {\"color\": {\"mode\": \"palette-classic\"\
+    },\"unit\": \"ops\"},\"overrides\": []},\n      \"gridPos\": {\"h\": 8,\"w\":\
+    \ 12,\"x\": 0,\"y\": 0},\n      \"id\": 1,\n      \"options\": {\"legend\": {\"\
+    displayMode\": \"table\",\"placement\": \"bottom\"}},\n      \"targets\": [\n\
+    \        {\"expr\": \"sum(rate(fx_trade_submitted_total[5m]))\",\"legendFormat\"\
+    : \"Trade Submitted/s\",\"refId\": \"A\"},\n        {\"expr\": \"sum(rate(fx_saga_completed_total[5m]))\"\
+    ,\"legendFormat\": \"Saga Completed/s\",\"refId\": \"B\"},\n        {\"expr\"\
+    : \"sum(rate(fx_saga_cancelled_total[5m]))\",\"legendFormat\": \"Saga Cancelled/s\"\
+    ,\"refId\": \"C\"},\n        {\"expr\": \"sum(rate(fx_compensation_started_total[5m]))\"\
+    ,\"legendFormat\": \"Compensation Started/s\",\"refId\": \"D\"},\n        {\"\
+    expr\": \"sum(rate(fx_saga_deferred_reverse_risk_enqueued_total[5m]))\",\"legendFormat\"\
+    : \"Deferred Reverse Risk (ordering fix)/s\",\"refId\": \"E\"}\n      ],\n   \
+    \   \"title\": \"Trade Throughput and Outcomes\",\n      \"type\": \"timeseries\"\
+    \n    },\n    {\n      \"datasource\": {\"type\": \"prometheus\",\"uid\": \"prometheus\"\
+    },\n      \"fieldConfig\": {\"defaults\": {\"color\": {\"mode\": \"palette-classic\"\
+    },\"unit\": \"s\"},\"overrides\": []},\n      \"gridPos\": {\"h\": 8,\"w\": 12,\"\
+    x\": 12,\"y\": 0},\n      \"id\": 2,\n      \"options\": {\"legend\": {\"displayMode\"\
+    : \"table\",\"placement\": \"bottom\"}},\n      \"targets\": [\n        {\"expr\"\
+    : \"histogram_quantile(0.95, sum by (le, application) (rate(http_server_requests_seconds_bucket{uri!~\\\
+    \"/actuator.*\\\"}[5m])))\",\"legendFormat\": \"{{application}} p95\",\"refId\"\
+    : \"A\"},\n        {\"expr\": \"histogram_quantile(0.99, sum by (le, application)\
+    \ (rate(http_server_requests_seconds_bucket{uri!~\\\"/actuator.*\\\"}[5m])))\"\
+    ,\"legendFormat\": \"{{application}} p99\",\"refId\": \"B\"}\n      ],\n     \
+    \ \"title\": \"HTTP Latency p95 / p99\",\n      \"type\": \"timeseries\"\n   \
+    \ },\n    {\n      \"datasource\": {\"type\": \"prometheus\",\"uid\": \"prometheus\"\
+    },\n      \"fieldConfig\": {\"defaults\": {\"color\": {\"mode\": \"palette-classic\"\
+    },\"unit\": \"ops\"},\"overrides\": []},\n      \"gridPos\": {\"h\": 8,\"w\":\
+    \ 12,\"x\": 0,\"y\": 8},\n      \"id\": 3,\n      \"options\": {\"legend\": {\"\
+    displayMode\": \"table\",\"placement\": \"bottom\"}},\n      \"targets\": [\n\
+    \        {\"expr\": \"sum by (status) (rate(http_server_requests_seconds_count{status=~\\\
+    \"4..|5..\\\"}[5m]))\",\"legendFormat\": \"HTTP {{status}}\",\"refId\": \"A\"\
+    }\n      ],\n      \"title\": \"HTTP Error Rate by Status\",\n      \"type\":\
+    \ \"timeseries\"\n    },\n    {\n      \"datasource\": {\"type\": \"prometheus\"\
+    ,\"uid\": \"prometheus\"},\n      \"fieldConfig\": {\"defaults\": {\"color\":\
+    \ {\"mode\": \"palette-classic\"},\"unit\": \"s\"},\"overrides\": []},\n     \
+    \ \"gridPos\": {\"h\": 8,\"w\": 12,\"x\": 12,\"y\": 8},\n      \"id\": 4,\n  \
+    \    \"options\": {\"legend\": {\"displayMode\": \"table\",\"placement\": \"bottom\"\
+    }},\n      \"targets\": [\n        {\"expr\": \"histogram_quantile(0.95, sum by\
+    \ (le, outcome) (rate(fx_trade_saga_duration_seconds_bucket[5m])))\",\"legendFormat\"\
+    : \"{{outcome}} p95\",\"refId\": \"A\"},\n        {\"expr\": \"histogram_quantile(0.99,\
+    \ sum by (le, outcome) (rate(fx_trade_saga_duration_seconds_bucket[5m])))\",\"\
+    legendFormat\": \"{{outcome}} p99\",\"refId\": \"B\"}\n      ],\n      \"title\"\
+    : \"trade_saga Completion Duration\",\n      \"type\": \"timeseries\"\n    },\n\
+    \    {\n      \"datasource\": {\"type\": \"prometheus\",\"uid\": \"prometheus\"\
+    },\n      \"fieldConfig\": {\"defaults\": {\"color\": {\"mode\": \"palette-classic\"\
+    },\"unit\": \"short\"},\"overrides\": []},\n      \"gridPos\": {\"h\": 8,\"w\"\
+    : 12,\"x\": 0,\"y\": 16},\n      \"id\": 5,\n      \"options\": {\"legend\": {\"\
+    displayMode\": \"table\",\"placement\": \"bottom\"}},\n      \"targets\": [\n\
+    \        {\"expr\": \"sum by (source_service) (fx_outbox_backlog_total)\",\"legendFormat\"\
+    : \"{{source_service}} backlog\",\"refId\": \"A\"},\n        {\"expr\": \"sum\
+    \ by (source_service) (fx_outbox_error_total)\",\"legendFormat\": \"{{source_service}}\
+    \ error\",\"refId\": \"B\"}\n      ],\n      \"title\": \"Outbox Backlog\",\n\
+    \      \"type\": \"timeseries\"\n    },\n    {\n      \"datasource\": {\"type\"\
+    : \"prometheus\",\"uid\": \"prometheus\"},\n      \"fieldConfig\": {\"defaults\"\
+    : {\"color\": {\"mode\": \"palette-classic\"},\"unit\": \"short\"},\"overrides\"\
+    : []},\n      \"gridPos\": {\"h\": 8,\"w\": 12,\"x\": 12,\"y\": 16},\n      \"\
+    id\": 6,\n      \"options\": {\"legend\": {\"displayMode\": \"table\",\"placement\"\
+    : \"bottom\"}},\n      \"targets\": [\n        {\"expr\": \"sum by (source_service)\
+    \ (rate(fx_outbox_enqueued_total[5m]))\",\"legendFormat\": \"{{source_service}}\
+    \ enqueue\",\"refId\": \"A\"},\n        {\"expr\": \"sum by (source_service) (rate(fx_outbox_sent_total[5m]))\"\
+    ,\"legendFormat\": \"{{source_service}} sent\",\"refId\": \"B\"},\n        {\"\
+    expr\": \"sum by (source_service) (rate(fx_outbox_failed_total[5m]))\",\"legendFormat\"\
+    : \"{{source_service}} failed\",\"refId\": \"C\"}\n      ],\n      \"title\":\
+    \ \"Outbox Delivery Rate\",\n      \"type\": \"timeseries\"\n    },\n    {\n \
+    \     \"datasource\": {\"type\": \"prometheus\",\"uid\": \"prometheus\"},\n  \
+    \    \"fieldConfig\": {\"defaults\": {\"color\": {\"mode\": \"palette-classic\"\
+    },\"unit\": \"short\"},\"overrides\": []},\n      \"gridPos\": {\"h\": 8,\"w\"\
+    : 12,\"x\": 0,\"y\": 24},\n      \"id\": 7,\n      \"options\": {\"legend\": {\"\
+    displayMode\": \"table\",\"placement\": \"bottom\"}},\n      \"targets\": [\n\
+    \        {\"expr\": \"hikaricp_connections_active\",\"legendFormat\": \"{{application}}\
+    \ active\",\"refId\": \"A\"},\n        {\"expr\": \"hikaricp_connections_pending\"\
+    ,\"legendFormat\": \"{{application}} pending\",\"refId\": \"B\"},\n        {\"\
+    expr\": \"hikaricp_connections_max\",\"legendFormat\": \"{{application}} max\"\
+    ,\"refId\": \"C\"}\n      ],\n      \"title\": \"HikariCP Connections\",\n   \
+    \   \"type\": \"timeseries\"\n    },\n    {\n      \"datasource\": {\"type\":\
+    \ \"prometheus\",\"uid\": \"prometheus\"},\n      \"fieldConfig\": {\"defaults\"\
+    : {\"color\": {\"mode\": \"palette-classic\"},\"unit\": \"short\"},\"overrides\"\
+    : []},\n      \"gridPos\": {\"h\": 8,\"w\": 12,\"x\": 12,\"y\": 24},\n      \"\
+    id\": 8,\n      \"options\": {\"legend\": {\"displayMode\": \"table\",\"placement\"\
+    : \"bottom\"}},\n      \"targets\": [\n        {\"expr\": \"fx_kafka_consumer_group_lag\"\
+    ,\"legendFormat\": \"{{consumer_group}} {{topic}}\",\"refId\": \"A\"}\n      ],\n\
+    \      \"title\": \"Kafka Consumer Lag\",\n      \"type\": \"timeseries\"\n  \
+    \  },\n    {\n      \"datasource\": {\"type\": \"prometheus\",\"uid\": \"prometheus\"\
+    },\n      \"fieldConfig\": {\"defaults\": {\"color\": {\"mode\": \"palette-classic\"\
+    },\"unit\": \"cores\"},\"overrides\": []},\n      \"gridPos\": {\"h\": 8,\"w\"\
+    : 12,\"x\": 0,\"y\": 32},\n      \"id\": 9,\n      \"options\": {\"legend\": {\"\
+    displayMode\": \"table\",\"placement\": \"bottom\"}},\n      \"targets\": [\n\
+    \        {\"expr\": \"sum by (pod) (rate(container_cpu_usage_seconds_total{namespace=\\\
+    \"fx-trading-camel422\\\",container!=\\\"\\\",pod=~\\\"(fx|trade|cover|risk|accounting|settlement|notification|compliance).*\\\
+    \"}[5m]))\",\"legendFormat\": \"{{pod}}\",\"refId\": \"A\"}\n      ],\n      \"\
+    title\": \"Pod CPU Usage\",\n      \"type\": \"timeseries\"\n    },\n    {\n \
+    \     \"datasource\": {\"type\": \"prometheus\",\"uid\": \"prometheus\"},\n  \
+    \    \"fieldConfig\": {\"defaults\": {\"color\": {\"mode\": \"palette-classic\"\
+    },\"unit\": \"bytes\"},\"overrides\": []},\n      \"gridPos\": {\"h\": 8,\"w\"\
+    : 12,\"x\": 12,\"y\": 32},\n      \"id\": 10,\n      \"options\": {\"legend\"\
+    : {\"displayMode\": \"table\",\"placement\": \"bottom\"}},\n      \"targets\"\
+    : [\n        {\"expr\": \"sum by (pod) (container_memory_working_set_bytes{namespace=\\\
+    \"fx-trading-camel422\\\",container!=\\\"\\\",pod=~\\\"(fx|trade|cover|risk|accounting|settlement|notification|compliance).*\\\
+    \"})\",\"legendFormat\": \"{{pod}}\",\"refId\": \"A\"}\n      ],\n      \"title\"\
+    : \"Pod Memory Usage\",\n      \"type\": \"timeseries\"\n    },\n    {\n     \
+    \ \"datasource\": {\"type\": \"prometheus\",\"uid\": \"prometheus\"},\n      \"\
+    fieldConfig\": {\"defaults\": {\"color\": {\"mode\": \"palette-classic\"},\"unit\"\
+    : \"short\"},\"overrides\": []},\n      \"gridPos\": {\"h\": 8,\"w\": 12,\"x\"\
+    : 0,\"y\": 40},\n      \"id\": 11,\n      \"options\": {\"legend\": {\"displayMode\"\
+    : \"table\",\"placement\": \"bottom\"}},\n      \"targets\": [\n        {\"expr\"\
+    : \"sum by (pod) (kube_pod_container_status_restarts_total{namespace=\\\"fx-trading-camel422\\\
+    \",pod=~\\\"(fx|trade|cover|risk|accounting|settlement|notification|compliance).*\\\
+    \"})\",\"legendFormat\": \"{{pod}}\",\"refId\": \"A\"}\n      ],\n      \"title\"\
+    : \"Pod Restarts\",\n      \"type\": \"timeseries\"\n    },\n    {\n      \"datasource\"\
+    : {\"type\": \"prometheus\",\"uid\": \"prometheus\"},\n      \"fieldConfig\":\
+    \ {\"defaults\": {\"color\": {\"mode\": \"palette-classic\"},\"unit\": \"bytes\"\
+    },\"overrides\": []},\n      \"gridPos\": {\"h\": 8,\"w\": 12,\"x\": 12,\"y\"\
+    : 40},\n      \"id\": 12,\n      \"options\": {\"legend\": {\"displayMode\": \"\
+    table\",\"placement\": \"bottom\"}},\n      \"targets\": [\n        {\"expr\"\
+    : \"sum by (application) (jvm_memory_used_bytes{area=\\\"heap\\\"})\",\"legendFormat\"\
+    : \"{{application}} heap\",\"refId\": \"A\"},\n        {\"expr\": \"process_cpu_usage\"\
+    ,\"legendFormat\": \"{{application}} cpu\",\"refId\": \"B\"}\n      ],\n     \
+    \ \"title\": \"JVM Heap / Process CPU\",\n      \"type\": \"timeseries\"\n   \
+    \ },\n    {\n      \"datasource\": {\"type\": \"tempo\",\"uid\": \"tempo\"},\n\
+    \      \"gridPos\": {\"h\": 8,\"w\": 12,\"x\": 0,\"y\": 48},\n      \"id\": 13,\n\
+    \      \"targets\": [\n        {\n          \"queryType\": \"traceqlSearch\",\n\
+    \          \"query\": \"{ resource.service.name =~ \\\"fx-core-service|cover-service|risk-service|accounting-service|settlement-service\\\
+    \" }\",\n          \"refId\": \"A\"\n        }\n      ],\n      \"title\": \"\
+    Tempo Traces for FX Flow\",\n      \"type\": \"traces\"\n    },\n    {\n     \
+    \ \"datasource\": {\"type\": \"loki\",\"uid\": \"loki\"},\n      \"gridPos\":\
+    \ {\"h\": 8,\"w\": 12,\"x\": 12,\"y\": 48},\n      \"id\": 14,\n      \"options\"\
+    : {\n        \"dedupStrategy\": \"none\",\n        \"enableLogDetails\": true,\n\
+    \        \"prettifyLogMessage\": false,\n        \"showLabels\": true,\n     \
+    \   \"sortOrder\": \"Descending\",\n        \"wrapLogMessage\": true\n      },\n\
+    \      \"targets\": [\n        {\"expr\": \"{app=~\\\"fx-core-service|trade-saga-service|cover-service|risk-service|accounting-service|settlement-service|notification-service|compliance-service\\\
+    \"}\",\"refId\": \"A\"}\n      ],\n      \"title\": \"Application Logs\",\n  \
+    \    \"type\": \"logs\"\n    }\n  ],\n  \"refresh\": \"10s\",\n  \"schemaVersion\"\
+    : 39,\n  \"style\": \"dark\",\n  \"tags\": [\n    \"fx\",\n    \"trading\",\n\
+    \    \"observability\"\n  ],\n  \"templating\": {\n    \"list\": []\n  },\n  \"\
+    time\": {\n    \"from\": \"now-30m\",\n    \"to\": \"now\"\n  },\n  \"timezone\"\
+    : \"\",\n  \"title\": \"FX Trading Overview\",\n  \"uid\": \"fx-trading-overview\"\
+    ,\n  \"version\": 1,\n  \"weekStart\": \"\"\n}\n"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: fx-prometheus
+  namespace: fx-trading-camel422
+  labels:
+    app.kubernetes.io/part-of: fx-trading-camel422
+spec:
+  selector:
+    app: fx-prometheus
+  ports:
+  - name: http
+    port: 9090
+    targetPort: 9090
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: fx-loki
+  namespace: fx-trading-camel422
+  labels:
+    app.kubernetes.io/part-of: fx-trading-camel422
+spec:
+  selector:
+    app: fx-loki
+  ports:
+  - name: http
+    port: 3100
+    targetPort: 3100
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: fx-tempo
+  namespace: fx-trading-camel422
+  labels:
+    app.kubernetes.io/part-of: fx-trading-camel422
+spec:
+  selector:
+    app: fx-tempo
+  ports:
+  - name: http
+    port: 3200
+    targetPort: 3200
+  - name: otlp-grpc
+    port: 4317
+    targetPort: 4317
+  - name: otlp-http
+    port: 4318
+    targetPort: 4318
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: fx-grafana
+  namespace: fx-trading-camel422
+  labels:
+    app.kubernetes.io/part-of: fx-trading-camel422
+spec:
+  selector:
+    app: fx-grafana
+  ports:
+  - name: http
+    port: 3000
+    targetPort: 3000
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: fx-prometheus
+  namespace: fx-trading-camel422
+  labels:
+    app.kubernetes.io/part-of: fx-trading-camel422
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: fx-prometheus
+  template:
+    metadata:
+      labels:
+        app: fx-prometheus
+    spec:
+      serviceAccountName: fx-prometheus
+      containers:
+      - name: prometheus
+        image: prom/prometheus:v2.54.1
+        imagePullPolicy: IfNotPresent
+        args:
+        - --config.file=/etc/prometheus/prometheus.yml
+        - --storage.tsdb.path=/tmp/prometheus
+        - --web.enable-lifecycle
+        ports:
+        - containerPort: 9090
+          name: http
+        volumeMounts:
+        - name: config
+          mountPath: /etc/prometheus
+      volumes:
+      - name: config
+        configMap:
+          name: fx-prometheus-config
+      enableServiceLinks: false
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: fx-loki
+  namespace: fx-trading-camel422
+  labels:
+    app.kubernetes.io/part-of: fx-trading-camel422
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: fx-loki
+  template:
+    metadata:
+      labels:
+        app: fx-loki
+    spec:
+      containers:
+      - name: loki
+        image: grafana/loki:3.3.2
+        imagePullPolicy: IfNotPresent
+        args:
+        - -config.file=/etc/loki/loki.yaml
+        ports:
+        - containerPort: 3100
+          name: http
+        volumeMounts:
+        - name: config
+          mountPath: /etc/loki
+      volumes:
+      - name: config
+        configMap:
+          name: fx-loki-config
+      enableServiceLinks: false
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: fx-tempo
+  namespace: fx-trading-camel422
+  labels:
+    app.kubernetes.io/part-of: fx-trading-camel422
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: fx-tempo
+  template:
+    metadata:
+      labels:
+        app: fx-tempo
+    spec:
+      containers:
+      - name: tempo
+        image: grafana/tempo:2.6.1
+        imagePullPolicy: IfNotPresent
+        args:
+        - -config.file=/etc/tempo/tempo.yaml
+        ports:
+        - containerPort: 3200
+          name: http
+        - containerPort: 4317
+          name: otlp-grpc
+        - containerPort: 4318
+          name: otlp-http
+        volumeMounts:
+        - name: config
+          mountPath: /etc/tempo
+      volumes:
+      - name: config
+        configMap:
+          name: fx-tempo-config
+      enableServiceLinks: false
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: fx-grafana
+  namespace: fx-trading-camel422
+  labels:
+    app.kubernetes.io/part-of: fx-trading-camel422
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: fx-grafana
+  template:
+    metadata:
+      labels:
+        app: fx-grafana
+    spec:
+      containers:
+      - name: grafana
+        image: grafana/grafana:11.3.1
+        imagePullPolicy: IfNotPresent
+        env:
+        - name: GF_SECURITY_ADMIN_USER
+          value: admin
+        - name: GF_PATHS_DATA
+          value: /tmp/grafana
+        - name: GF_PATHS_LOGS
+          value: /tmp/grafana/logs
+        - name: GF_PATHS_PLUGINS
+          value: /tmp/grafana/plugins
+        - name: GF_PATHS_PROVISIONING
+          value: /etc/grafana/provisioning
+        - name: GF_SECURITY_ADMIN_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: fx-observability
+              key: admin-password
+        ports:
+        - containerPort: 3000
+          name: http
+        volumeMounts:
+        - name: grafana-data
+          mountPath: /tmp/grafana
+        - name: datasources
+          mountPath: /etc/grafana/provisioning/datasources
+        - name: dashboard-provider
+          mountPath: /etc/grafana/provisioning/dashboards
+        - name: dashboards
+          mountPath: /var/lib/grafana/dashboards
+      volumes:
+      - name: grafana-data
+        emptyDir: {}
+      - name: datasources
+        configMap:
+          name: fx-grafana-datasources
+      - name: dashboard-provider
+        configMap:
+          name: fx-grafana-dashboard-provider
+      - name: dashboards
+        configMap:
+          name: fx-grafana-dashboard
+      enableServiceLinks: false
+---
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: fx-grafana
+  namespace: fx-trading-camel422
+  labels:
+    app.kubernetes.io/part-of: fx-trading-camel422
+spec:
+  to:
+    kind: Service
+    name: fx-grafana
+  port:
+    targetPort: http
+  tls:
+    termination: edge
+    insecureEdgeTerminationPolicy: Redirect
+---
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: fx-prometheus
+  namespace: fx-trading-camel422
+  labels:
+    app.kubernetes.io/part-of: fx-trading-camel422
+spec:
+  to:
+    kind: Service
+    name: fx-prometheus
+  port:
+    targetPort: http
+  tls:
+    termination: edge
+    insecureEdgeTerminationPolicy: Redirect

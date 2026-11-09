@@ -1,6 +1,6 @@
 # fx-trading-sample — Camel 4.22 更新実行レポート
 
-実施日: 2026-11-09。ブランチ: `upgrade/camel-4.22`。最終検証結果は本レポートの「検証結果」に記載する。OpenShift配備と本番相当負荷試験は未実施である。
+実施日: 2026-11-09。ブランチ: `upgrade/camel-4.22`。最終検証結果は本レポートの「検証結果」に記載する。追加のOpenShift配備と疎通結果は [OpenShift配備レポート](CAMEL-4.22-OPENSHIFT-REPORT.md) に記録した。本番相当負荷試験は未実施である。
 
 ## 採用構成と変更
 
@@ -70,3 +70,7 @@ podman run --rm --entrypoint java localhost/fx-core-camel422:validation -version
 FXはBootのmajor更新、Jacksonの既定値変更、8サービスの永続状態・補償、JDKとruntimeを跨ぐため、API側より検証と切り戻しの範囲が広い。実際にも既存JSONの読込互換性と非同期試験の競合が表面化した。API側はHTTP・streamingの本番相当試験に残る不確実性が大きいため、今回のローカル作業時間だけで本番移行の総工数は判断できない。
 
 関連: [計画](CAMEL-4.22-UPGRADE-PLAN.md) / [WBS](CAMEL-4.22-WBS.md) / [ToDo](CAMEL-4.22-TODO.md)。当初計画を残し、本レポートを実績の正本とする。
+
+## 追加の配備実績
+
+本書の「未実施」「残件」は先行ローカル検証時点の記録である。現在の配備・疎通・判明した制約は [OpenShift配備レポート](CAMEL-4.22-OPENSHIFT-REPORT.md) を参照する。
