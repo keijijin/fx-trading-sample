@@ -9,7 +9,7 @@ mvn -B clean verify "$@"
 python3 - <<'PY'
 from pathlib import Path
 import xml.etree.ElementTree as ET
-expected = {'TradeFlowIntegrationTest': 9, 'JsonContractTest': 3}
+expected = {'TradeFlowIntegrationTest': 10, 'JsonContractTest': 3}
 for name, count in expected.items():
     reports = list(Path('integration-tests/target/surefire-reports').glob(f'TEST-*.{name}.xml'))
     assert len(reports) == 1, f'Missing or ambiguous report: {name}'

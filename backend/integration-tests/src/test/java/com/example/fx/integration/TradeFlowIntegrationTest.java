@@ -1,6 +1,7 @@
 package com.example.fx.integration;
 
 import com.example.fx.accounting.AccountingServiceApplication;
+import com.example.fx.common.event.EventTypes;
 import com.example.fx.compliance.ComplianceServiceApplication;
 import com.example.fx.cover.CoverServiceApplication;
 import com.example.fx.core.FxCoreServiceApplication;
@@ -394,6 +395,45 @@ class TradeFlowIntegrationTest {
                     assertEquals("COMPLETED", saga.get("risk_status"), saga.toString());
                     assertEquals("COMPLETED", saga.get("accounting_status"), saga.toString());
                     assertEquals("COMPLETED", saga.get("saga_status"), saga.toString());
+                });
+    }
+
+    /** Steps that finish after compensation started must still be reversed before the saga closes. */
+    @Test
+    void coverArrivingAfterCompensationStartedShouldBeReversed() throws Exception {
+        String tradeId = "TRD-COMP-LATE-" + UUID.randomUUID();
+        Map<String, Object> payload = Map.of(
+                "tradeId", tradeId,
+                "orderId", "ORD-" + tradeId,
+                "accountId", "ACC-010",
+                "currencyPair", "USD/JPY",
+                "side", "BUY",
+                "orderAmount", 1000.00,
+                "executedAmount", 1000.00,
+                "executedPrice", 150.25,
+                "correlationId", "CORR-" + tradeId
+        );
+
+        publishEvent("fx-compliance-events", EventTypes.COMPLIANCE_CHECK_FAILED, tradeId, payload);
+        Awaitility.await()
+                .atMost(Duration.ofSeconds(45))
+                .pollInterval(Duration.ofMillis(250))
+                .ignoreExceptions()
+                .untilAsserted(() -> assertEquals("COMPENSATING", loadSaga(tradeId).get("saga_status")));
+
+        // The real risk and accounting services also consume this event, as they would in production.
+        publishEvent("fx-cover-events", EventTypes.COVER_TRADE_BOOKED, tradeId, payload);
+
+        Awaitility.await()
+                .atMost(Duration.ofSeconds(60))
+                .pollInterval(Duration.ofMillis(250))
+                .untilAsserted(() -> {
+                    Map<String, String> saga = loadSaga(tradeId);
+                    assertEquals("COMPENSATED", saga.get("cover_status"), saga.toString());
+                    assertEquals("COMPENSATED", saga.get("risk_status"), saga.toString());
+                    assertEquals("COMPENSATED", saga.get("accounting_status"), saga.toString());
+                    assertEquals("NOT_STARTED", saga.get("settlement_status"), saga.toString());
+                    assertEquals("CANCELLED", saga.get("saga_status"), saga.toString());
                 });
     }
 

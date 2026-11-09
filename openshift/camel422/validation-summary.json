@@ -14,7 +14,7 @@
     "notificationStatus": "COMPLETED"
   },
   "startupTrade": "PENDING on the first deployment; not counted as success",
-  "afterSagaOrderingFix": {"rollingRestartTrades": 10, "completed": 10, "recordKeyTopicsChecked": 6},
+  "afterSagaOrderingFix": {"rollingRestartTrades": 10, "completed": 10, "recordKeyTopicsChecked": 6, "complianceFailureTrade": "CANCELLED"},
   "compensationTrade": {
     "sagaStatus": "CANCELLED",
     "notificationStatus": "COMPENSATED"

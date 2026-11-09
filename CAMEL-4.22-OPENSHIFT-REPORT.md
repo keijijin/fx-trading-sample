@@ -42,4 +42,6 @@ Kafkaレコードキーの回帰とSagaのイベント順序の競合を修正�
 
 修正前は同じ試験で3件がPENDINGのまま停止し、`CoverTradeBooked` の後着による状態の上書きを処理順で確認した。前回の「起動・再起動中の1件」は記録が残らず同一原因とは断定しないが、修正後は再現していない。rolling restartでは旧Podが新PodのReadyまで処理を続けるため、この試験はPod停止による処理中断の試験ではない。既に停止した合成取引はDBを手動で書き換えず、そのまま残している。
 
+補償開始後に完了したステップの取消を修正した `trade-saga-service` を再配備し、digestの一致を確認した。合成のcompliance失敗取引は **CANCELLED** となり、正常取引、cover失敗の補償、6トピックのレコードキー、accountingのrolling restart中の10取引も成功した。作業中にクラスタが一時的に到達不能となったが、復旧後に全21 DeploymentとKafkaがReadyへ戻ったことを確認した。
+
 資材: [openshift/camel422](openshift/camel422/README.md)。検証集計: [validation-summary.json](openshift/camel422/validation-summary.json)。実際のURLは `oc get route -n fx-trading-camel422` で取得できる。

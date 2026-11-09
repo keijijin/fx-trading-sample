@@ -46,7 +46,7 @@ JDK 25をJAVA_HOMEへ設定し、Docker API互換環境を起動してから実�
 bash scripts/verify-camel-upgrade.sh
 ```
 
-rootless PodmanでRyukが使えない管理されたローカル環境では、必要に応じて環境変数 `TESTCONTAINERS_RYUK_DISABLED=true` を指定する。scriptは既存7シナリオ、Kafkaレコードキー試験1件、イベント順序試験1件、JSON契約3件の件数・失敗・error・skipを確認する。検証では一時Maven設定によりCentralへ接続した。個人settingsや秘密値は登録しない。
+rootless PodmanでRyukが使えない管理されたローカル環境では、必要に応じて環境変数 `TESTCONTAINERS_RYUK_DISABLED=true` を指定する。scriptは既存7シナリオ、Kafkaレコードキー試験1件、イベント順序試験2件、JSON契約3件の件数・失敗・error・skipを確認する。検証では一時Maven設定によりCentralへ接続した。個人settingsや秘密値は登録しない。
 
 runtime imageの再build例はbackendディレクトリで次のとおりである。
 
@@ -92,7 +92,17 @@ FXはBootのmajor更新、Jacksonの既定値変更、8サービスの永続状�
 
 既にPENDINGで停止した合成取引はDBを手動で書き換えず、そのまま残している。
 
-残件: 補償の開始後に `CoverTradeBooked` が届いた場合、coverの取消要求は送られない。別途、遅延時の取消を設計して試験する必要がある。
+## 追加修正: 補償開始後に完了したステップの取消
+
+実施日: 2026-11-09。補償の開始時点で未完了のcover / risk / accountingが後から完了すると取消されず、精算まで開始され、SagaはCOMPENSATINGのまま閉じなかった。
+
+- 補償開始時に、`NOT_STARTED` と `PENDING` のステップへ取消予約を付ける。ステップの完了時に予約があれば一度だけ取消を要求する。
+- 補償中は精算を開始しない。coverの結果が未着の間はSagaをCANCELLEDにしない。
+- 補償開始時は先に行ロックを取り、同時に完了したステップの取消漏れと二重要求を防ぐ。
+- 結合試験 `coverArrivingAfterCompensationStartedShouldBeReversed` を追加した。修正前は失敗することを確認した。
+- 修正後の `scripts/verify-camel-upgrade.sh`: BUILD SUCCESS、**13件成功(TradeFlow 10、JsonContract 3)、失敗0、error0、skip0**。
+
+再配備後の結果は [OpenShift配備レポート](CAMEL-4.22-OPENSHIFT-REPORT.md) に記録した。
 
 ## 追加の配備実績
 

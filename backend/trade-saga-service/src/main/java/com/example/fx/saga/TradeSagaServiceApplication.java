@@ -156,6 +156,7 @@ class TradeSagaService {
                 markStepPendingIfNotStarted(payload.tradeId(), "risk_status");
                 markStepPendingIfNotStarted(payload.tradeId(), "accounting_status");
                 recordStageDuration(payload.tradeId(), "cover", "completed", "created_at", "cover_completed_at");
+                enqueueDeferredReverseIfNeeded(payload, "cover_status", "cover_cancel_requested", EventTypes.REVERSE_COVER_TRADE_REQUESTED);
                 completeIfReady(payload.tradeId(), "cover_booked");
             }
             case EventTypes.COVER_TRADE_FAILED -> {
@@ -178,6 +179,7 @@ class TradeSagaService {
                 updateStepStatus(payload.tradeId(), "accounting_status", "COMPLETED", "accounting_completed_at");
                 recordStageDuration(payload.tradeId(), "accounting", "completed", "cover_completed_at", "accounting_completed_at");
                 maybeRequestSettlement(payload);
+                enqueueDeferredReverseIfNeeded(payload, "accounting_status", "accounting_cancel_requested", EventTypes.REVERSE_ACCOUNTING_REQUESTED);
             }
             case EventTypes.ACCOUNTING_POST_FAILED -> {
                 updateStepStatus(payload.tradeId(), "accounting_status", "FAILED", "accounting_completed_at");
@@ -264,7 +266,8 @@ class TradeSagaService {
         String settlementStatus = stringValue(state, "settlement_status");
         if ("COMPLETED".equals(riskStatus)
                 && "COMPLETED".equals(accountingStatus)
-                && "NOT_STARTED".equals(settlementStatus)) {
+                && "NOT_STARTED".equals(settlementStatus)
+                && !"COMPENSATING".equals(stringValue(state, "saga_status"))) {
             updateStepStatus(payload.tradeId(), "settlement_status", "PENDING", "settlement_requested_at");
             tradeActivitySupport.record(
                     payload.tradeId(),
@@ -308,12 +311,13 @@ class TradeSagaService {
     }
 
     private void startCompensation(TradePayload payload, boolean requestCorrectionNotice) {
-        Map<String, Object> state = loadSaga(payload.tradeId());
+        // Take the row lock first so a step finishing concurrently is seen either here or by its deferred reverse.
         jdbcTemplate.update(
                 "update trade_saga set saga_status = 'COMPENSATING', updated_at = ?, version_no = version_no + 1 where trade_id = ?",
                 now(),
                 payload.tradeId()
         );
+        Map<String, Object> state = loadSaga(payload.tradeId());
         tradeActivitySupport.record(
                 payload.tradeId(),
                 "trade-saga-service",
@@ -330,10 +334,10 @@ class TradeSagaService {
         requestIfCompleted(state, "accounting_status", EventTypes.REVERSE_ACCOUNTING_REQUESTED, "fx-compensation-events", payload);
         requestIfCompleted(state, "settlement_status", EventTypes.CANCEL_SETTLEMENT_REQUESTED, "fx-compensation-events", payload);
 
-        markCancelRequestedIfPending(payload.tradeId(), state, "cover_status", "cover_cancel_requested");
-        markCancelRequestedIfPending(payload.tradeId(), state, "risk_status", "risk_cancel_requested");
-        markCancelRequestedIfPending(payload.tradeId(), state, "accounting_status", "accounting_cancel_requested");
-        markCancelRequestedIfPending(payload.tradeId(), state, "settlement_status", "settlement_cancel_requested");
+        markCancelRequestedIfUnfinished(payload.tradeId(), state, "cover_status", "cover_cancel_requested");
+        markCancelRequestedIfUnfinished(payload.tradeId(), state, "risk_status", "risk_cancel_requested");
+        markCancelRequestedIfUnfinished(payload.tradeId(), state, "accounting_status", "accounting_cancel_requested");
+        markCancelRequestedIfUnfinished(payload.tradeId(), state, "settlement_status", "settlement_cancel_requested");
 
         if (requestCorrectionNotice || isNotificationClosed(stringValue(state, "notification_status"))) {
             enqueue(
@@ -358,8 +362,10 @@ class TradeSagaService {
         }
     }
 
-    private void markCancelRequestedIfPending(String tradeId, Map<String, Object> state, String statusColumn, String flagColumn) {
-        if ("PENDING".equals(stringValue(state, statusColumn))) {
+    /** NOT_STARTED counts too: the step's events travel on other topics and may still arrive. */
+    private void markCancelRequestedIfUnfinished(String tradeId, Map<String, Object> state, String statusColumn, String flagColumn) {
+        String status = stringValue(state, statusColumn);
+        if ("PENDING".equals(status) || "NOT_STARTED".equals(status)) {
             jdbcTemplate.update(
                     "update trade_saga set " + flagColumn + " = true, updated_at = ?, version_no = version_no + 1 where trade_id = ?",
                     now(),
@@ -374,26 +380,35 @@ class TradeSagaService {
      * {@code risk_status} was still PENDING. When risk later completes, enqueue the deferred reverse once.
      */
     private void enqueueDeferredReverseRiskIfNeeded(TradePayload payload) {
-        int updated = jdbcTemplate.update(
-                "update trade_saga set risk_cancel_requested = false, updated_at = ?, version_no = version_no + 1 "
-                        + "where trade_id = ? and saga_status = 'COMPENSATING' and risk_cancel_requested = true "
-                        + "and risk_status = 'COMPLETED'",
-                now(),
-                payload.tradeId()
-        );
-        if (updated == 1) {
+        if (enqueueDeferredReverseIfNeeded(payload, "risk_status", "risk_cancel_requested", EventTypes.REVERSE_RISK_REQUESTED)) {
             Counter.builder("fx_saga_deferred_reverse_risk_enqueued_total")
                     .description("REVERSE_RISK_REQUESTED enqueued after risk completed while compensating (parallel consumer ordering)")
                     .register(meterRegistry)
                     .increment();
-            enqueue(payload, EventTypes.REVERSE_RISK_REQUESTED, "fx-compensation-events", "trade_saga", payload.tradeId());
         }
+    }
+
+    private boolean enqueueDeferredReverseIfNeeded(TradePayload payload, String statusColumn, String flagColumn, String reverseEventType) {
+        int updated = jdbcTemplate.update(
+                "update trade_saga set " + flagColumn + " = false, updated_at = ?, version_no = version_no + 1 "
+                        + "where trade_id = ? and saga_status = 'COMPENSATING' and " + flagColumn + " = true "
+                        + "and " + statusColumn + " = 'COMPLETED'",
+                now(),
+                payload.tradeId()
+        );
+        if (updated != 1) {
+            return false;
+        }
+        enqueue(payload, reverseEventType, "fx-compensation-events", "trade_saga", payload.tradeId());
+        return true;
     }
 
     private void cancelIfReady(String tradeId) {
         Map<String, Object> state = loadSaga(tradeId);
+        // Every trade yields a cover result, so NOT_STARTED means it has not arrived yet.
         boolean allClosed =
-                isCompensationClosed(stringValue(state, "cover_status"))
+                !"NOT_STARTED".equals(stringValue(state, "cover_status"))
+                        && isCompensationClosed(stringValue(state, "cover_status"))
                         && isCompensationClosed(stringValue(state, "risk_status"))
                         && isCompensationClosed(stringValue(state, "accounting_status"))
                         && isCompensationClosed(stringValue(state, "settlement_status"))
