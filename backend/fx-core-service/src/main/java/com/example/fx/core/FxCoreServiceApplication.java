@@ -12,7 +12,6 @@ import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Timer;
 import jakarta.annotation.PostConstruct;
 import org.apache.camel.builder.RouteBuilder;
-import org.apache.camel.model.dataformat.JsonLibrary;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
@@ -831,7 +830,7 @@ class PositionProjectionConsumerRoute extends RouteBuilder {
                 .routeId("fx-core-position-projection")
                 .choice()
                     .when(header("eventType").isEqualTo(EventTypes.TRADE_EXECUTED))
-                        .unmarshal().json(JsonLibrary.Jackson, TradePayload.class)
+                        .unmarshal("tradePayloadJson")
                         .bean(positionProjectionService, "project(${body}, ${header.eventId})")
                 .end();
     }

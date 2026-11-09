@@ -13,8 +13,9 @@ spring:
       idle-timeout: ${DB_POOL_IDLE_TIMEOUT_MS:30000}
       max-lifetime: ${DB_POOL_MAX_LIFETIME_MS:300000}
   jackson:
-    serialization:
-      write-dates-as-timestamps: false
+    datatype:
+      datetime:
+        write-dates-as-timestamps: false
 
 management:
   endpoints:

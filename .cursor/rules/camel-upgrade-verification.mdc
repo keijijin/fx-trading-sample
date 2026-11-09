@@ -1,0 +1,14 @@
+---
+description: Camel 4.22 / Boot 4 / Jackson 3 更新時に実証した互換性と試験規約
+globs: backend/**/*.java,backend/**/pom.xml,backend/**/application.yml
+alwaysApply: false
+---
+
+- Camel の版だけを更新せず、Boot BOM / Camel BOM / JDK / runtime image の対応を確認する。
+- 結合試験はコンテナがない場合にスキップしない。既存7シナリオと JSON 契約試験の件数・失敗・skipを確認する。
+- 旧イベントでは simulation boolean が省略される場合がある。Jackson 3 の FAIL_ON_NULL_FOR_PRIMITIVES の既定値変更に注意し、互換性を共通 mapper と実 Camel data format の両方で検証する。
+- 全取引consumerは共通 tradePayloadJson data format を明示参照する。mapper Bean の登録だけで Camel が同じ設定を使うとは仮定しない。
+- Jackson 3 の日時設定は spring.jackson.datatype.datetime 配下とする。旧 serialization.write-dates-as-timestamps を残さない。
+- Awaitility.untilAsserted 内で未作成の projection を扱う場合、参照前に assertNotNull を置く。NullPointerException では再試行されない。
+- rootless Podman の Ryuk 問題を理由に試験全体を無効化しない。必要なローカル環境だけで明示的に Ryuk を無効化し、終了時のコンテナ停止を確認する。
+- build・ローカル結合試験の成功と、OpenShift / 負荷 / 切り戻し試験の成功を区別して報告する。

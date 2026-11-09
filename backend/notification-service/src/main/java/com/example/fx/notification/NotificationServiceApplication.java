@@ -8,7 +8,6 @@ import com.example.fx.common.model.TradePayload;
 import com.example.fx.common.outbox.AbstractOutboxPublisherRoute;
 import com.example.fx.common.outbox.OutboxSupport;
 import org.apache.camel.builder.RouteBuilder;
-import org.apache.camel.model.dataformat.JsonLibrary;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -40,7 +39,7 @@ class NotificationConsumerRoute extends RouteBuilder {
                 .routeId("notification-trade-events")
                 .choice()
                     .when(header("eventType").isEqualTo(EventTypes.TRADE_EXECUTED))
-                        .unmarshal().json(JsonLibrary.Jackson, TradePayload.class)
+                        .unmarshal("tradePayloadJson")
                         .bean(notificationService, "sendTradeNotice(${body}, ${header.eventId})")
                 .end();
 
@@ -48,7 +47,7 @@ class NotificationConsumerRoute extends RouteBuilder {
                 .routeId("notification-comp-events")
                 .choice()
                     .when(header("eventType").isEqualTo(EventTypes.SEND_CORRECTION_NOTICE_REQUESTED))
-                        .unmarshal().json(JsonLibrary.Jackson, TradePayload.class)
+                        .unmarshal("tradePayloadJson")
                         .bean(notificationService, "sendCorrectionNotice(${body}, ${header.eventId})")
                 .end();
     }

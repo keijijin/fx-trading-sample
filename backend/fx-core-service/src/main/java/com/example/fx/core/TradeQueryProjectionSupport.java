@@ -7,7 +7,6 @@ import com.example.fx.common.model.TradePayload;
 import com.example.fx.common.outbox.OutboxSupport;
 import jakarta.annotation.PostConstruct;
 import org.apache.camel.builder.RouteBuilder;
-import org.apache.camel.model.dataformat.JsonLibrary;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.jdbc.core.JdbcOperations;
 import org.springframework.stereotype.Component;
@@ -125,7 +124,7 @@ class TradeQueryProjectionRoute extends RouteBuilder {
 
         from("direct:projectTradeQueryEvent")
                 .routeId("fx-core-project-trade-query-event")
-                .unmarshal().json(JsonLibrary.Jackson, TradePayload.class)
+                .unmarshal("tradePayloadJson")
                 .bean(tradeQueryProjectionService, "project(${header.eventType}, ${body}, ${header.eventId}, ${header.topicName})");
     }
 }

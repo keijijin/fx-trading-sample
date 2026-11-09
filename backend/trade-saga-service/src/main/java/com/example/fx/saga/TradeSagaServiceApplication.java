@@ -12,7 +12,6 @@ import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Timer;
 import jakarta.annotation.PostConstruct;
 import org.apache.camel.builder.RouteBuilder;
-import org.apache.camel.model.dataformat.JsonLibrary;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -45,7 +44,7 @@ class TradeSagaRoute extends RouteBuilder {
                 .routeId("trade-saga-trade-events")
                 .choice()
                     .when(header("eventType").isEqualTo(EventTypes.TRADE_EXECUTED))
-                        .unmarshal().json(JsonLibrary.Jackson, TradePayload.class)
+                        .unmarshal("tradePayloadJson")
                         .bean(tradeSagaService, "seed(${body}, ${header.eventId})")
                 .end();
 
@@ -75,7 +74,7 @@ class TradeSagaRoute extends RouteBuilder {
 
         from("direct:handleTradeSagaEvent")
                 .routeId("trade-saga-handle-event")
-                .unmarshal().json(JsonLibrary.Jackson, TradePayload.class)
+                .unmarshal("tradePayloadJson")
                 .bean(tradeSagaService, "handle(${header.eventType}, ${body}, ${header.eventId})");
     }
 }

@@ -8,8 +8,8 @@ import com.example.fx.notification.NotificationServiceApplication;
 import com.example.fx.risk.RiskServiceApplication;
 import com.example.fx.saga.TradeSagaServiceApplication;
 import com.example.fx.settlement.SettlementServiceApplication;
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.core.type.TypeReference;
+import tools.jackson.databind.json.JsonMapper;
 import org.awaitility.Awaitility;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
@@ -43,7 +43,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-@Testcontainers(disabledWithoutDocker = true)
+@Testcontainers
 class TradeFlowIntegrationTest {
     @Container
     static final PostgreSQLContainer<?> POSTGRES = new PostgreSQLContainer<>("postgres:16");
@@ -52,7 +52,7 @@ class TradeFlowIntegrationTest {
     static final KafkaContainer KAFKA =
             new KafkaContainer(DockerImageName.parse("apache/kafka-native:3.8.0"));
 
-    static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
+    static final JsonMapper OBJECT_MAPPER = JsonMapper.builder().build();
     static final HttpClient HTTP_CLIENT = HttpClient.newHttpClient();
     static final List<ConfigurableApplicationContext> CONTEXTS = new ArrayList<>();
     static int FX_CORE_PORT;
@@ -289,6 +289,7 @@ class TradeFlowIntegrationTest {
                 .pollInterval(Duration.ofMillis(250))
                 .untilAsserted(() -> {
                     Map<String, String> projection = loadProjection(tradeId);
+                    assertNotNull(projection, "Wait for the asynchronous projection to be created");
                     assertEquals("COMPLETED", projection.get("saga_status"));
                     assertEquals("COMPLETED", projection.get("notification_status"));
                 });

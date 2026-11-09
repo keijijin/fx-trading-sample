@@ -351,3 +351,14 @@ OpenShift 上での最終再試験では、次を確認しています。
 - Camel 4 の EIP / Component を優先利用
 - 業務判断・状態遷移・補償判定は Service 層で管理
 - 「流量ではなく競合点を減らす」構造的スケーリング
+
+## Camel 4.22 / Spring Boot 4 更新
+
+バックエンドの基盤は **JDK 25 / Spring Boot 4.1.1 / Camel 4.22.2 / Jackson 3** です。
+
+- [更新レポート](CAMEL-4.22-UPGRADE-REPORT.md) / [WBS](CAMEL-4.22-WBS.md) / [ToDo](CAMEL-4.22-TODO.md)
+- JDK 25 を JAVA_HOME に指定し、`bash scripts/verify-camel-upgrade.sh` で build・JSON 契約・8サービス結合試験を実行します。Python 3 と Docker API 互換のコンテナ環境が必要です。
+- Docker/Podman が利用できない場合、結合試験は失敗します。スキップを成功として扱いません。
+- rootless Podman で Ryuk が起動しない管理されたローカル環境では、必要に応じて `TESTCONTAINERS_RYUK_DISABLED=true` を指定します。CIでは原則としてRyukを有効にしてください。異常終了時には当該テストが起動したコンテナの残留を確認します。
+- 各サービスの起動用 JAR は `*-exec.jar` です。通常の JAR は結合試験用の依存としても使用します。
+- runtime image は Eclipse Temurin 25、実行ユーザーは185です。以前の UBI runtime と配布元・OSが異なるため、製品サポート・脆弱性管理・社内image基準への適合は配備前に確認してください。

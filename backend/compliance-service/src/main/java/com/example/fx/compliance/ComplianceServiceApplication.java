@@ -8,7 +8,6 @@ import com.example.fx.common.model.TradePayload;
 import com.example.fx.common.outbox.AbstractOutboxPublisherRoute;
 import com.example.fx.common.outbox.OutboxSupport;
 import org.apache.camel.builder.RouteBuilder;
-import org.apache.camel.model.dataformat.JsonLibrary;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -40,7 +39,7 @@ class ComplianceConsumerRoute extends RouteBuilder {
                 .routeId("compliance-trade-events")
                 .choice()
                     .when(header("eventType").isEqualTo(EventTypes.TRADE_EXECUTED))
-                        .unmarshal().json(JsonLibrary.Jackson, TradePayload.class)
+                        .unmarshal("tradePayloadJson")
                         .bean(complianceService, "check(${body}, ${header.eventId})")
                 .end();
     }

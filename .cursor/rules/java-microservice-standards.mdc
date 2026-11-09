@@ -6,7 +6,7 @@ alwaysApply: false
 
 # Java Microservice Standards
 
-- Java は JDK 21 を前提とし、Spring Boot + Apache Camel 4.14 系に合わせて実装する。
+- Java は JDK 25 を前提とし、Spring Boot 4.1 + Apache Camel 4.22 系に合わせて実装する。Jackson 3 の mapper を使用し、annotations を除く旧 Jackson 2 の import を混在させない。
 - ルーティング、条件分岐、再送、例外ハンドリング、冪等、メッセージ変換は、まず Camel 4 の EIP / component で表現し、手書きロジックは最後の手段にする。
 - `RouteBuilder` では入出力、イベント分岐、EIP による制御、Bean 呼び出しまでに留め、業務ロジックを書かない。
 - Service メソッドでトランザクション境界を明確にし、DB 更新順序は設計書の ACID 手順に従う。

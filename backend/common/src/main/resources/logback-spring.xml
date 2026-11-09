@@ -33,10 +33,13 @@
 
     <root level="INFO">
         <appender-ref ref="CONSOLE"/>
-        <if condition='!property("lokiUrl").isEmpty()'>
-            <then>
-                <appender-ref ref="LOKI"/>
-            </then>
-        </if>
     </root>
+    <!-- Keep console logging unconditional; add the optional remote appender. -->
+    <if condition='!property("lokiUrl").isEmpty()'>
+        <then>
+            <root level="INFO">
+                <appender-ref ref="LOKI"/>
+            </root>
+        </then>
+    </if>
 </configuration>
