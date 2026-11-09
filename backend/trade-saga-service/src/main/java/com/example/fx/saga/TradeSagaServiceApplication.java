@@ -152,9 +152,11 @@ class TradeSagaService {
         switch (eventType) {
             case EventTypes.COVER_TRADE_BOOKED -> {
                 updateStepStatus(payload.tradeId(), "cover_status", "COMPLETED", "cover_completed_at");
-                updateStepStatus(payload.tradeId(), "risk_status", "PENDING");
-                updateStepStatus(payload.tradeId(), "accounting_status", "PENDING");
+                // Risk and accounting events arrive on other topics and may already have been handled.
+                markStepPendingIfNotStarted(payload.tradeId(), "risk_status");
+                markStepPendingIfNotStarted(payload.tradeId(), "accounting_status");
                 recordStageDuration(payload.tradeId(), "cover", "completed", "created_at", "cover_completed_at");
+                completeIfReady(payload.tradeId(), "cover_booked");
             }
             case EventTypes.COVER_TRADE_FAILED -> {
                 updateStepStatus(payload.tradeId(), "cover_status", "FAILED", "cover_completed_at");
@@ -418,6 +420,15 @@ class TradeSagaService {
 
     private void updateStepStatus(String tradeId, String column, String status) {
         updateStepStatus(tradeId, column, status, null);
+    }
+
+    private void markStepPendingIfNotStarted(String tradeId, String column) {
+        jdbcTemplate.update(
+                "update trade_saga set " + column + " = 'PENDING', updated_at = ?, version_no = version_no + 1 "
+                        + "where trade_id = ? and " + column + " = 'NOT_STARTED'",
+                now(),
+                tradeId
+        );
     }
 
     private void updateStepStatus(String tradeId, String column, String status, String timestampColumn) {

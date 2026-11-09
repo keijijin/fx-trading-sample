@@ -31,4 +31,15 @@
 
 継続負荷、複数replica競合、DB / broker障害注入、旧版への切り戻し、全監視指標とtraceの受入は残件である。
 
+## 再配備と追加検証（2026-11-09）
+
+Kafkaレコードキーの回帰とSagaのイベント順序の競合を修正し、8サービスのimageを再配備した。全21 DeploymentがReadyで、再配備したサービスのdigestはbuild結果と一致した。
+
+- 合成の正常取引: **COMPLETED**。cover失敗: **CANCELLED**。
+- 6トピックで取引のレコードキーがtradeIdと一致し、同一トピック内で同じパーティションに配置された。
+- accountingのrolling restart中に投入した合成取引10件: すべて **COMPLETED**。
+- fx-coreの `/actuator/health` は約3〜5秒かかり、既定1秒のstartup probeで新Podが起動できなかった。timeoutを10秒へ変更した。
+
+修正前は同じ試験で3件がPENDINGのまま停止し、`CoverTradeBooked` の後着による状態の上書きを処理順で確認した。前回の「起動・再起動中の1件」は記録が残らず同一原因とは断定しないが、修正後は再現していない。rolling restartでは旧Podが新PodのReadyまで処理を続けるため、この試験はPod停止による処理中断の試験ではない。既に停止した合成取引はDBを手動で書き換えず、そのまま残している。
+
 資材: [openshift/camel422](openshift/camel422/README.md)。検証集計: [validation-summary.json](openshift/camel422/validation-summary.json)。実際のURLは `oc get route -n fx-trading-camel422` で取得できる。

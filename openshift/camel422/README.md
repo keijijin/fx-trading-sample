@@ -50,6 +50,6 @@ namespace・build定義・アプリをまとめた `oc apply -k openshift/camel4
 
 ## 検証上の残件
 
-Ready後の正常取引・cover失敗時補償・frontend proxyを確認した。一方、起動・再起動中の最初の合成試行1件はaccountingがPENDINGのまま残った。イベント再配送・topic間順序・状態遷移の調査が必要であり、無停止切替や負荷試験の合格とは扱わない。offset resetやDB状態の手動書換えで隠していない。
+Ready後の正常取引・cover失敗時補償・frontend proxyを確認した。一方、起動・再起動中の最初の合成試行1件はaccountingがPENDINGのまま残った。その後、Sagaのイベント順序の競合を修正し、accountingのrolling restart中の10取引がすべて完了することを確認した。Pod停止による処理中断、無停止切替、負荷試験の合格とは扱わない。offset resetやDB状態の手動書換えで隠していない。
 
 結果は [配備レポート](../../../CAMEL-4.22-OPENSHIFT-REPORT.md) を参照する。

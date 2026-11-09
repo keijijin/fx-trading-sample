@@ -12,6 +12,7 @@ import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Timer;
 import jakarta.annotation.PostConstruct;
 import org.apache.camel.builder.RouteBuilder;
+import org.apache.camel.component.kafka.KafkaConstants;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
@@ -800,7 +801,7 @@ class OutboxPublisherRoute extends RouteBuilder {
                 .setHeader("eventId", simple("${body[event_id]}"))
                 .bean(outboxSupport, "claimAndLoad(${header.eventId})")
                 .filter(body().isNotNull())
-                    .setHeader("kafka.KEY", simple("${body[message_key]}"))
+                    .setHeader(KafkaConstants.KEY, simple("${body[message_key]}"))
                     .setHeader("eventType", simple("${body[event_type]}"))
                     .setHeader("topicName", simple("${body[topic_name]}"))
                     .setHeader("aggregateId", simple("${body[aggregate_id]}"))

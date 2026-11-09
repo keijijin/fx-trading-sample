@@ -13,7 +13,8 @@
     "sagaStatus": "COMPLETED",
     "notificationStatus": "COMPLETED"
   },
-  "startupTrade": "PENDING; accounting step unresolved during rollout; further analysis required",
+  "startupTrade": "PENDING on the first deployment; not counted as success",
+  "afterSagaOrderingFix": {"rollingRestartTrades": 10, "completed": 10, "recordKeyTopicsChecked": 6},
   "compensationTrade": {
     "sagaStatus": "CANCELLED",
     "notificationStatus": "COMPENSATED"

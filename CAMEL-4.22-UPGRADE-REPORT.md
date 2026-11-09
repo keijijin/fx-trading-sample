@@ -46,7 +46,7 @@ JDK 25をJAVA_HOMEへ設定し、Docker API互換環境を起動してから実�
 bash scripts/verify-camel-upgrade.sh
 ```
 
-rootless PodmanでRyukが使えない管理されたローカル環境では、必要に応じて環境変数 `TESTCONTAINERS_RYUK_DISABLED=true` を指定する。scriptは既存7シナリオとJSON契約3件の件数・失敗・error・skipを確認する。検証では一時Maven設定によりCentralへ接続した。個人settingsや秘密値は登録しない。
+rootless PodmanでRyukが使えない管理されたローカル環境では、必要に応じて環境変数 `TESTCONTAINERS_RYUK_DISABLED=true` を指定する。scriptは既存7シナリオ、Kafkaレコードキー試験1件、イベント順序試験1件、JSON契約3件の件数・失敗・error・skipを確認する。検証では一時Maven設定によりCentralへ接続した。個人settingsや秘密値は登録しない。
 
 runtime imageの再build例はbackendディレクトリで次のとおりである。
 
@@ -70,6 +70,29 @@ podman run --rm --entrypoint java localhost/fx-core-camel422:validation -version
 FXはBootのmajor更新、Jacksonの既定値変更、8サービスの永続状態・補償、JDKとruntimeを跨ぐため、API側より検証と切り戻しの範囲が広い。実際にも既存JSONの読込互換性と非同期試験の競合が表面化した。API側はHTTP・streamingの本番相当試験に残る不確実性が大きいため、今回のローカル作業時間だけで本番移行の総工数は判断できない。
 
 関連: [計画](CAMEL-4.22-UPGRADE-PLAN.md) / [WBS](CAMEL-4.22-WBS.md) / [ToDo](CAMEL-4.22-TODO.md)。当初計画を残し、本レポートを実績の正本とする。
+
+## 追加修正: Kafkaレコードキーの回帰
+
+実施日: 2026-11-09。Camel 4.22では `KafkaConstants.KEY` の値が `kafka.KEY` から `CamelKafkaKey` へ変更された。Outbox発行ルート2箇所が `"kafka.KEY"` を直書きしていたため、例外なくレコードキーがnullとなり、tradeId単位の順序保証が失われていた。
+
+- 共通ルートとfx-core独自ルートを `KafkaConstants.KEY` 参照へ変更し、`common` に `camel-kafka` を追加した。
+- 結合試験 `outboxEventsShouldUseTradeIdAsKafkaKey` を追加した。修正前は `fx-trade-events` / `fx-cover-events` の両方でキーがnullとなり失敗することを確認した。
+- 修正後の `scripts/verify-camel-upgrade.sh`: BUILD SUCCESS、**11件成功(TradeFlow 8、JsonContract 3)、失敗0、error0、skip0**。
+
+修正を含むimageは `fx-trading-camel422` へ配備済みである。既にKafkaへ送信済みのキーなしレコードは修正されない。
+
+## 追加修正: Sagaのイベント到着順序
+
+実施日: 2026-11-09。別トピックの `CoverTradeBooked` が `RiskUpdated` / `AccountingPosted` より後に処理されると、完了済みのrisk / accountingを無条件に `PENDING` へ戻し、Sagaが完了しなかった。OpenShiftの再起動試験で3件が停止し、Sagaの処理順で原因を確認した。当該コードは今回のCamel更新では変更しておらず、既存の競合である。
+
+- `CoverTradeBooked` は `NOT_STARTED` のステップだけを `PENDING` へ更新する。
+- coverが最後に届いた場合も完了判定を行う。
+- 結合試験 `lateCoverEventShouldNotRegressCompletedStepsAndShouldCompleteSaga` を追加した。修正前は失敗することを確認した。
+- 修正後の `scripts/verify-camel-upgrade.sh`: BUILD SUCCESS、**12件成功(TradeFlow 9、JsonContract 3)、失敗0、error0、skip0**。
+
+既にPENDINGで停止した合成取引はDBを手動で書き換えず、そのまま残している。
+
+残件: 補償の開始後に `CoverTradeBooked` が届いた場合、coverの取消要求は送られない。別途、遅延時の取消を設計して試験する必要がある。
 
 ## 追加の配備実績
 

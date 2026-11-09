@@ -10,6 +10,14 @@ import com.example.fx.saga.TradeSagaServiceApplication;
 import com.example.fx.settlement.SettlementServiceApplication;
 import tools.jackson.core.type.TypeReference;
 import tools.jackson.databind.json.JsonMapper;
+import org.apache.kafka.clients.consumer.ConsumerConfig;
+import org.apache.kafka.clients.consumer.ConsumerRecord;
+import org.apache.kafka.clients.consumer.KafkaConsumer;
+import org.apache.kafka.clients.producer.KafkaProducer;
+import org.apache.kafka.clients.producer.ProducerConfig;
+import org.apache.kafka.clients.producer.ProducerRecord;
+import org.apache.kafka.common.serialization.StringDeserializer;
+import org.apache.kafka.common.serialization.StringSerializer;
 import org.awaitility.Awaitility;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
@@ -27,6 +35,7 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.net.ServerSocket;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.sql.Connection;
@@ -35,9 +44,11 @@ import java.sql.ResultSet;
 import java.sql.Statement;
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -337,6 +348,110 @@ class TradeFlowIntegrationTest {
                     assertEquals("EXECUTED", payload.get("tradeStatus"));
                     assertNotNull(payload.get("services"));
                 });
+    }
+
+    /** Each saga step has its own topic and consumer, so CoverTradeBooked can arrive last. */
+    @Test
+    void lateCoverEventShouldNotRegressCompletedStepsAndShouldCompleteSaga() throws Exception {
+        String tradeId = "TRD-LATE-COVER-" + UUID.randomUUID();
+        Map<String, Object> payload = Map.of(
+                "tradeId", tradeId,
+                "orderId", "ORD-" + tradeId,
+                "accountId", "ACC-009",
+                "currencyPair", "USD/JPY",
+                "side", "BUY",
+                "orderAmount", 1000.00,
+                "executedAmount", 1000.00,
+                "executedPrice", 150.25,
+                "correlationId", "CORR-" + tradeId
+        );
+
+        publishEvent("fx-risk-events", "RiskUpdated", tradeId, payload);
+        publishEvent("fx-accounting-events", "AccountingPosted", tradeId, payload);
+        publishEvent("fx-compliance-events", "ComplianceChecked", tradeId, payload);
+        publishEvent("fx-notification-events", "TradeNotificationSent", tradeId, payload);
+        Awaitility.await()
+                .atMost(Duration.ofSeconds(45))
+                .pollInterval(Duration.ofMillis(250))
+                .ignoreExceptions()
+                .untilAsserted(() -> {
+                    Map<String, String> saga = loadSaga(tradeId);
+                    assertEquals("COMPLETED", saga.get("risk_status"));
+                    assertEquals("COMPLETED", saga.get("accounting_status"));
+                    assertEquals("COMPLETED", saga.get("settlement_status"));
+                    assertEquals("COMPLETED", saga.get("compliance_status"));
+                    assertEquals("COMPLETED", saga.get("notification_status"));
+                });
+
+        publishEvent("fx-cover-events", "CoverTradeBooked", tradeId, payload);
+
+        Awaitility.await()
+                .atMost(Duration.ofSeconds(45))
+                .pollInterval(Duration.ofMillis(250))
+                .untilAsserted(() -> {
+                    Map<String, String> saga = loadSaga(tradeId);
+                    assertEquals("COMPLETED", saga.get("cover_status"), saga.toString());
+                    assertEquals("COMPLETED", saga.get("risk_status"), saga.toString());
+                    assertEquals("COMPLETED", saga.get("accounting_status"), saga.toString());
+                    assertEquals("COMPLETED", saga.get("saga_status"), saga.toString());
+                });
+    }
+
+    private static void publishEvent(String topic, String eventType, String tradeId, Map<String, Object> payload) throws Exception {
+        Map<String, Object> producerConfig = Map.of(
+                ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, KAFKA.getBootstrapServers(),
+                ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class,
+                ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, StringSerializer.class
+        );
+        try (KafkaProducer<String, String> producer = new KafkaProducer<>(producerConfig)) {
+            ProducerRecord<String, String> kafkaRecord =
+                    new ProducerRecord<>(topic, tradeId, OBJECT_MAPPER.writeValueAsString(payload));
+            kafkaRecord.headers().add("eventType", eventType.getBytes(StandardCharsets.UTF_8));
+            kafkaRecord.headers().add("eventId", UUID.randomUUID().toString().getBytes(StandardCharsets.UTF_8));
+            producer.send(kafkaRecord).get();
+        }
+    }
+
+    /** Per-trade ordering depends on the record key; covers fx-core's and the shared Outbox publisher. */
+    @Test
+    void outboxEventsShouldUseTradeIdAsKafkaKey() throws Exception {
+        Map<String, Object> response = postTrade(Map.ofEntries(
+                Map.entry("accountId", "ACC-008"),
+                Map.entry("currencyPair", "USD/JPY"),
+                Map.entry("side", "BUY"),
+                Map.entry("orderAmount", 1000.00),
+                Map.entry("requestedPrice", 150.25),
+                Map.entry("simulateCoverFailure", false),
+                Map.entry("simulateRiskFailure", false),
+                Map.entry("simulateAccountingFailure", false),
+                Map.entry("simulateSettlementFailure", false),
+                Map.entry("simulateNotificationFailure", false),
+                Map.entry("simulateComplianceFailure", false),
+                Map.entry("preTradeComplianceFailure", false)
+        ));
+        String tradeId = response.get("tradeId").toString();
+
+        Map<String, Object> consumerConfig = Map.of(
+                ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, KAFKA.getBootstrapServers(),
+                ConsumerConfig.GROUP_ID_CONFIG, "record-key-test-" + UUID.randomUUID(),
+                ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest",
+                ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class,
+                ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class
+        );
+        Map<String, String> keysByTopic = new HashMap<>();
+        try (KafkaConsumer<String, String> consumer = new KafkaConsumer<>(consumerConfig)) {
+            consumer.subscribe(List.of("fx-trade-events", "fx-cover-events"));
+            long deadline = System.nanoTime() + Duration.ofSeconds(45).toNanos();
+            while (keysByTopic.size() < 2 && System.nanoTime() < deadline) {
+                for (ConsumerRecord<String, String> kafkaRecord : consumer.poll(Duration.ofMillis(250))) {
+                    if (kafkaRecord.value().contains(tradeId)) {
+                        keysByTopic.put(kafkaRecord.topic(), kafkaRecord.key());
+                    }
+                }
+            }
+        }
+
+        assertEquals(Map.of("fx-trade-events", tradeId, "fx-cover-events", tradeId), keysByTopic);
     }
 
     private static ConfigurableApplicationContext startApp(Class<?> appClass, int port) {

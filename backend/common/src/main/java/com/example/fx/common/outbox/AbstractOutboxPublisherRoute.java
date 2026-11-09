@@ -1,6 +1,7 @@
 package com.example.fx.common.outbox;
 
 import org.apache.camel.builder.RouteBuilder;
+import org.apache.camel.component.kafka.KafkaConstants;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -40,7 +41,7 @@ public abstract class AbstractOutboxPublisherRoute extends RouteBuilder {
                 .setHeader("eventId", simple("${body[event_id]}"))
                 .bean(outboxSupport, "claimAndLoad(${header.eventId})")
                 .filter(body().isNotNull())
-                    .setHeader("kafka.KEY", simple("${body[message_key]}"))
+                    .setHeader(KafkaConstants.KEY, simple("${body[message_key]}"))
                     .setHeader("eventType", simple("${body[event_type]}"))
                     .setHeader("topicName", simple("${body[topic_name]}"))
                     .setHeader("aggregateId", simple("${body[aggregate_id]}"))
